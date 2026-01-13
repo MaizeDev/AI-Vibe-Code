@@ -1,0 +1,401 @@
+<!DOCTYPE html>
+<html lang="zh-CN">
+<head>
+    <meta charset="UTF-8">
+    <meta name="viewport" content="width=device-width, initial-scale=1.0">
+    <title>优雅截图 V8 (真机模型版) - By Antigravity</title>
+    
+    <script src="https://cdn.tailwindcss.com?plugins=typography"></script>
+    <script src="https://cdn.jsdelivr.net/npm/marked/marked.min.js"></script>
+    <script src="https://cdnjs.cloudflare.com/ajax/libs/html2canvas/1.4.1/html2canvas.min.js"></script>
+    <script src="https://cdnjs.cloudflare.com/ajax/libs/jszip/3.10.1/jszip.min.js"></script>
+    <script src="https://cdnjs.cloudflare.com/ajax/libs/FileSaver.js/2.0.5/FileSaver.min.js"></script>
+    <link href="https://fonts.googleapis.com/css2?family=Noto+Sans+SC:wght@300;400;500;700&family=JetBrains+Mono:wght@400;500&display=swap" rel="stylesheet">
+    
+    <style>
+        body { font-family: 'Noto Sans SC', sans-serif; background-color: #e5e5e5; }
+        
+        /* 预览区布局 */
+        #preview-container {
+            display: flex;
+            flex-direction: column;
+            align-items: center;
+            gap: 40px;
+            padding-bottom: 100px;
+        }
+
+        /* --- 核心：设备样式定义 --- */
+
+        /* 1. 通用卡片容器 */
+        .capture-wrapper {
+            position: relative;
+            box-sizing: border-box;
+            transition: all 0.3s ease;
+            box-shadow: 0 20px 40px rgba(0,0,0,0.2);
+            overflow: hidden; /* 防止背景溢出圆角 */
+        }
+
+        /* 2. Mac 模式：自适应高度，经典的窗口 */
+        .mode-mac {
+            width: 680px;
+            border-radius: 16px;
+        }
+        .mode-mac .content-area {
+            min-height: 200px;
+            /* 高度随内容撑开 */
+        }
+        .mode-mac .mac-header { display: flex; }
+        .mode-mac .iphone-frame, 
+        .mode-mac .iphone-status-bar, 
+        .mode-mac .iphone-home-indicator { display: none; }
+
+        /* 3. iPhone 模式：固定比例，绝对定位 */
+        .mode-iphone {
+            /* iPhone 14/15/16 Pro Max 比例 (430 x 932) */
+            width: 430px; 
+            height: 932px; 
+            border-radius: 56px; /* 匹配 SVG 边框的圆角 */
+            background-color: #fff; /* 默认白底 */
+        }
+
+        /* iPhone 的 SVG 边框层，浮在最上面 */
+        .mode-iphone .iphone-frame {
+            position: absolute;
+            top: 0; left: 0; width: 100%; height: 100%;
+            pointer-events: none; /* 让点击穿透 */
+            z-index: 50; /* 最高层级 */
+        }
+
+        /* iPhone 的内容层，必须限制在安全区域内 */
+        .mode-iphone .content-area {
+            position: absolute;
+            top: 0; left: 0; width: 100%; height: 100%;
+            padding-top: 60px; /* 避开灵动岛 */
+            padding-bottom: 40px; /* 避开 Home Indicator */
+            padding-left: 28px;
+            padding-right: 28px;
+            box-sizing: border-box;
+            z-index: 10;
+            overflow: hidden; /* 内容过多切断（由分页逻辑处理） */
+        }
+
+        /* 隐藏 Mac 元素 */
+        .mode-iphone .mac-header, 
+        .mode-iphone .mac-footer { display: none; }
+
+        /* 状态栏 & 底部条 */
+        .mode-iphone .iphone-status-bar {
+            position: absolute;
+            top: 14px; left: 35px; right: 35px;
+            height: 30px;
+            z-index: 40;
+            display: flex;
+            justify-content: space-between;
+            align-items: center;
+            font-size: 15px;
+            font-weight: 600;
+            color: #000;
+        }
+        .mode-iphone .iphone-home-indicator {
+            position: absolute;
+            bottom: 8px; left: 50%;
+            transform: translateX(-50%);
+            width: 140px; height: 5px;
+            background: rgba(0,0,0,0.9);
+            border-radius: 10px;
+            z-index: 40;
+        }
+
+        /* MD 样式 */
+        .prose code { color: #ec4899; background: rgba(0,0,0,0.05); padding: 2px 4px; border-radius: 4px; font-family: 'JetBrains Mono'; font-size: 0.9em; }
+        .prose pre { background: #1e293b; color: #e2e8f0; border-radius: 12px; margin: 1em 0; padding: 1em; }
+        
+        /* 主题类 */
+        .theme-white { background: #ffffff; }
+        .theme-gradient-1 { background: linear-gradient(180deg, #e0c3fc 0%, #8ec5fc 100%); } /* iPhone 风格通常是竖向渐变 */
+        .theme-gradient-2 { background: linear-gradient(180deg, #a18cd1 0%, #fbc2eb 100%); }
+        .theme-dark { background: #1e1e1e; color: #fff; }
+        .theme-dark .prose { color: #e5e5e5; }
+        .theme-dark .prose strong { color: #fff; }
+        .theme-dark .iphone-status-bar { color: #fff; }
+        .theme-dark .iphone-home-indicator { background: #fff; }
+
+        /* 控件样式 */
+        .btn-tab { @apply flex-1 py-2 text-xs font-bold rounded-lg transition-all border border-transparent; }
+        .btn-tab.active { @apply bg-white shadow-sm text-gray-900 border-gray-200; }
+        .btn-tab.inactive { @apply text-gray-500 hover:text-gray-700 hover:bg-gray-100; }
+    </style>
+</head>
+<body class="h-screen flex flex-col md:flex-row overflow-hidden">
+
+    <!-- 左侧控制面板 -->
+    <div class="w-full md:w-96 bg-white p-6 flex flex-col border-r border-gray-200 z-10 shadow-xl overflow-y-auto">
+        <h1 class="text-xl font-bold text-gray-800 mb-6 flex items-center gap-2">
+            <span class="text-2xl">🎨</span> 截图工坊 V8
+        </h1>
+        
+        <textarea id="text-input" class="w-full h-40 p-4 bg-gray-50 border border-gray-200 rounded-xl resize-none focus:outline-none focus:ring-2 focus:ring-black/5 text-sm font-mono mb-6 shadow-inner" placeholder="输入内容..."></textarea>
+
+        <!-- 模式切换 -->
+        <div class="mb-6">
+            <label class="text-xs font-bold text-gray-400 uppercase tracking-wider mb-3 block">选择设备</label>
+            <div class="flex bg-gray-100 p-1 rounded-xl">
+                <button onclick="setMode('mac')" id="tab-mac" class="btn-tab active">Mac Window</button>
+                <button onclick="setMode('iphone')" id="tab-iphone" class="btn-tab inactive">iPhone 16 Pro</button>
+            </div>
+        </div>
+
+        <!-- 选项 -->
+        <div class="bg-gray-50 p-4 rounded-xl border border-gray-100 mb-6 space-y-4">
+            <div class="flex items-center justify-between">
+                <span class="text-sm font-bold text-gray-600">自动分页</span>
+                <label class="relative inline-flex items-center cursor-pointer">
+                    <input type="checkbox" id="split-toggle" class="sr-only peer">
+                    <div class="w-11 h-6 bg-gray-200 peer-focus:outline-none rounded-full peer peer-checked:after:translate-x-full peer-checked:after:border-white after:content-[''] after:absolute after:top-[2px] after:left-[2px] after:bg-white after:border-gray-300 after:border after:rounded-full after:h-5 after:w-5 after:transition-all peer-checked:bg-indigo-600"></div>
+                </label>
+            </div>
+            
+            <div class="space-y-2">
+                <label class="text-xs font-bold text-gray-400 uppercase">背景主题</label>
+                <div class="grid grid-cols-5 gap-3">
+                    <button onclick="setTheme('theme-white')" class="w-8 h-8 rounded-full border border-gray-200 bg-white hover:scale-110 transition"></button>
+                    <button onclick="setTheme('theme-gradient-1')" class="w-8 h-8 rounded-full theme-gradient-1 hover:scale-110 transition"></button>
+                    <button onclick="setTheme('theme-gradient-2')" class="w-8 h-8 rounded-full theme-gradient-2 hover:scale-110 transition"></button>
+                    <button onclick="setTheme('theme-dark')" class="w-8 h-8 rounded-full theme-dark hover:scale-110 transition"></button>
+                </div>
+            </div>
+        </div>
+
+        <button id="download-btn" class="mt-auto w-full bg-black text-white font-bold py-4 rounded-xl shadow-lg hover:shadow-xl hover:-translate-y-0.5 transition-all flex justify-center items-center gap-2">
+            生成图片 (PNG/ZIP)
+        </button>
+    </div>
+
+    <!-- 右侧预览 (灰色背景) -->
+    <div class="flex-1 bg-[#e0e0e0] overflow-y-auto p-10 relative flex justify-center">
+        <div class="absolute top-5 right-5 bg-black/5 px-3 py-1 rounded text-xs font-mono text-gray-500" id="page-info">1 Page</div>
+        
+        <div id="preview-container">
+            <!-- 图片将渲染在这里 -->
+        </div>
+    </div>
+
+    <!-- 隐藏的 SVG 资源：iPhone 15/16 Pro 边框 -->
+    <!-- 这是一个精确绘制的 SVG，包含外边框、内黑边、灵动岛 -->
+    <svg style="display: none;">
+        <symbol id="iphone-bezel" viewBox="0 0 430 932">
+            <!-- 钛金属外框阴影 -->
+            <rect x="2" y="2" width="426" height="928" rx="55" fill="none" stroke="#666" stroke-width="2" opacity="0.5"/>
+            <!-- 屏幕黑边 (Bezel) -->
+            <path d="M56 0h318c30.9 0 56 25.1 56 56v820c0 30.9-25.1 56-56 56H56c-30.9 0-56-25.1-56-56V56C0 25.1 25.1 0 56 0z" fill="none" stroke="#111" stroke-width="14"/>
+            <!-- 灵动岛 (Dynamic Island) -->
+            <rect x="126" y="11" width="178" height="37" rx="18.5" fill="#000"/>
+        </symbol>
+    </svg>
+
+    <script>
+        marked.use({ breaks: true, gfm: true });
+
+        const state = {
+            mode: 'iphone', // 默认 iPhone
+            split: false,
+            theme: 'theme-white',
+            text: `# V8 终极版演示
+
+无需任何图片素材，这就是纯代码生成的**完美 iPhone 边框**。
+
+## 核心特性
+
+1. **固定比例**：即使文字只有一行，生成的也是完整的手机截图大小。
+2. **矢量边框**：放大看细节，边缘无比锐利。
+3. **自适应**：自动处理灵动岛和底部横条的遮挡。
+
+### 尝试一下
+- 复制一大段文章进来
+- 开启 "自动分页"
+- 每一页都是一张完美的手机海报
+
+\`\`\`js
+console.log("Hello, iPhone 16 Pro");
+\`\`\`
+`
+        };
+
+        const els = {
+            input: document.getElementById('text-input'),
+            container: document.getElementById('preview-container'),
+            pageInfo: document.getElementById('page-info'),
+            splitCheck: document.getElementById('split-toggle'),
+            dlBtn: document.getElementById('download-btn'),
+            tabMac: document.getElementById('tab-mac'),
+            tabPhone: document.getElementById('tab-iphone')
+        };
+
+        // 初始化
+        els.input.value = state.text;
+        render();
+
+        // 监听器
+        els.input.addEventListener('input', (e) => { state.text = e.target.value; render(); });
+        els.splitCheck.addEventListener('change', (e) => { state.split = e.target.checked; render(); });
+        
+        window.setMode = (m) => { 
+            state.mode = m; 
+            els.tabMac.className = m === 'mac' ? 'btn-tab active' : 'btn-tab inactive';
+            els.tabPhone.className = m === 'iphone' ? 'btn-tab active' : 'btn-tab inactive';
+            render(); 
+        };
+        
+        window.setTheme = (t) => { state.theme = t; render(); };
+
+        // --- 核心渲染逻辑 ---
+
+        function createCardHTML(contentHTML, pageIndex, totalPages) {
+            // 根据模式决定卡片结构
+            const isPhone = state.mode === 'iphone';
+            
+            // 1. 构建头部 (Mac 才有)
+            const macHeader = `
+                <div class="mac-header h-10 px-4 items-center gap-2 border-b border-black/5 bg-white/50 backdrop-blur-sm">
+                    <div class="w-3 h-3 rounded-full bg-[#ff5f56]"></div>
+                    <div class="w-3 h-3 rounded-full bg-[#ffbd2e]"></div>
+                    <div class="w-3 h-3 rounded-full bg-[#27c93f]"></div>
+                </div>`;
+
+            // 2. 构建 iPhone 独有元素 (SVG 边框 + 状态栏)
+            // 注意：SVG 是覆盖在最上层的
+            const timeStr = new Date().toLocaleTimeString('en-US', {hour: '2-digit', minute:'2-digit', hour12: false});
+            const iphoneOverlays = `
+                <div class="iphone-status-bar">
+                    <span>${timeStr}</span>
+                    <div class="flex gap-1.5">
+                        <svg class="w-4 h-4" fill="currentColor" viewBox="0 0 24 24"><path d="M12 2C6.48 2 2 6.48 2 12s4.48 10 10 10 10-4.48 10-10S17.52 2 12 2zm-1 14H9v-2h2v2zm0-4H9V7h2v5z"/></svg>
+                        <svg class="w-4 h-4" fill="currentColor" viewBox="0 0 24 24"><path d="M12.01 21.49L23.64 7c-.45-.34-4.93-4-11.64-4C5.28 3 .81 6.66.36 7l11.63 14.49.01.01.01-.01z"/></svg>
+                        <svg class="w-5 h-5" fill="currentColor" viewBox="0 0 24 24"><path d="M16 4h-1V2.5C15 2.22 14.78 2 14.5 2h-5c-.28 0-.5.22-.5.5V4H8c-1.1 0-2 .9-2 2v12c0 1.1.9 2 2 2h8c1.1 0 2-.9 2-2V6c0-1.1-.9-2-2-2z"/></svg>
+                    </div>
+                </div>
+                <div class="iphone-home-indicator"></div>
+                <svg class="iphone-frame" viewBox="0 0 430 932" preserveAspectRatio="none">
+                    <use href="#iphone-bezel" />
+                </svg>
+            `;
+
+            // 3. 构建 Mac 底部
+            const macFooter = `
+                <div class="mac-footer h-8 bg-black/5 flex justify-between items-center px-4 text-[10px] text-gray-500 font-mono">
+                    <span>ANTIGRAVITY</span>
+                    <span>${pageIndex + 1}/${totalPages}</span>
+                </div>`;
+
+            // 组装 HTML
+            return `
+                <div class="capture-wrapper ${isPhone ? 'mode-iphone' : 'mode-mac'} ${state.theme}">
+                    ${isPhone ? iphoneOverlays : macHeader}
+                    <div class="content-area">
+                        <div class="prose prose-slate max-w-none ${state.theme === 'theme-dark' ? 'prose-invert' : ''}">
+                            ${contentHTML}
+                        </div>
+                    </div>
+                    ${isPhone ? '' : macFooter}
+                </div>
+            `;
+        }
+
+        function render() {
+            els.container.innerHTML = '';
+            const fullHTML = marked.parse(state.text);
+
+            let pages = [];
+
+            if (!state.split) {
+                // 不分页：Mac 模式正常长图，iPhone 模式...理论上也应该是长图还是固定？
+                // 逻辑决定：iPhone 模式下如果不分页，文字超长会溢出隐藏。
+                // 为了用户体验，我们强制让 iPhone 模式如果不分页，就显示全部内容（但这会破坏真机比例）。
+                // 为了保持 V8 的特性“完美边框”，我们这里只演示“分页”或“单页截断”。
+                // 这里处理为：单页显示。
+                pages = [fullHTML];
+            } else {
+                // 智能分页逻辑
+                // 1. 模拟容器计算高度
+                const ruler = document.createElement('div');
+                ruler.className = `prose prose-slate max-w-none ${state.theme === 'theme-dark' ? 'prose-invert' : ''}`;
+                // 宽度一定要和真实容器内容区一致
+                ruler.style.width = state.mode === 'iphone' ? '374px' : '640px'; 
+                ruler.style.visibility = 'hidden';
+                ruler.style.position = 'absolute';
+                ruler.innerHTML = fullHTML;
+                document.body.appendChild(ruler);
+
+                // 2. 设定安全高度
+                // iPhone: 932(总) - 60(上) - 40(下) = 832px
+                // Mac: 自定义，比如 600px
+                const safeHeight = state.mode === 'iphone' ? 830 : 600;
+
+                const nodes = Array.from(ruler.children);
+                let currentH = 0;
+                let buffer = [];
+
+                nodes.forEach(node => {
+                    const h = node.offsetHeight + 16; // 估算 margin
+                    if (currentH + h > safeHeight && buffer.length > 0) {
+                        pages.push(buffer.map(n => n.outerHTML).join(''));
+                        buffer = [];
+                        currentH = 0;
+                    }
+                    buffer.push(node);
+                    currentH += h;
+                });
+                if (buffer.length) pages.push(buffer.map(n => n.outerHTML).join(''));
+                document.body.removeChild(ruler);
+            }
+
+            els.pageInfo.innerText = `${pages.length} Page${pages.length > 1 ? 's' : ''}`;
+
+            pages.forEach((html, idx) => {
+                const div = document.createElement('div');
+                div.innerHTML = createCardHTML(html, idx, pages.length);
+                els.container.appendChild(div.firstElementChild);
+            });
+        }
+
+        // 下载
+        els.dlBtn.addEventListener('click', async () => {
+            const targets = document.querySelectorAll('.capture-wrapper');
+            if(!targets.length) return;
+            
+            const btnText = els.dlBtn.innerText;
+            els.dlBtn.innerText = '📸 渲染中...';
+            els.dlBtn.disabled = true;
+
+            try {
+                // 等待字体和 SVG 渲染
+                await new Promise(r => setTimeout(r, 300));
+
+                if (targets.length === 1) {
+                    const canvas = await html2canvas(targets[0], { scale: 3, useCORS: true, backgroundColor: null });
+                    const link = document.createElement('a');
+                    link.download = `screenshot_v8_${Date.now()}.png`;
+                    link.href = canvas.toDataURL();
+                    link.click();
+                } else {
+                    const zip = new JSZip();
+                    for(let i=0; i<targets.length; i++) {
+                        const canvas = await html2canvas(targets[i], { scale: 3, useCORS: true, backgroundColor: null });
+                        const blob = await new Promise(r => canvas.toBlob(r));
+                        zip.file(`slide_${i+1}.png`, blob);
+                    }
+                    const content = await zip.generateAsync({type:"blob"});
+                    saveAs(content, `slides_package.zip`);
+                }
+            } catch(e) {
+                console.error(e);
+                alert("生成失败，请检查控制台");
+            } finally {
+                els.dlBtn.innerText = btnText;
+                els.dlBtn.disabled = false;
+            }
+        });
+
+    </script>
+</body>
+</html>

@@ -1,0 +1,407 @@
+<!DOCTYPE html>
+<html lang="zh-CN">
+<head>
+    <meta charset="UTF-8">
+    <meta name="viewport" content="width=device-width, initial-scale=1.0">
+    <title>优雅截图 V7 (iPhone带壳版) - By Antigravity</title>
+    
+    <script src="https://cdn.tailwindcss.com?plugins=typography"></script>
+    <script src="https://cdn.jsdelivr.net/npm/marked/marked.min.js"></script>
+    <script src="https://cdnjs.cloudflare.com/ajax/libs/html2canvas/1.4.1/html2canvas.min.js"></script>
+    <script src="https://cdnjs.cloudflare.com/ajax/libs/jszip/3.10.1/jszip.min.js"></script>
+    <script src="https://cdnjs.cloudflare.com/ajax/libs/FileSaver.js/2.0.5/FileSaver.min.js"></script>
+    <link href="https://fonts.googleapis.com/css2?family=Noto+Sans+SC:wght@300;400;500;700&family=JetBrains+Mono:wght@400;500&display=swap" rel="stylesheet">
+    
+    <style>
+        body { font-family: 'Noto Sans SC', sans-serif; background-color: #f3f4f6; }
+        
+        /* 滚动条美化 */
+        textarea::-webkit-scrollbar { width: 8px; }
+        textarea::-webkit-scrollbar-track { background: #f1f1f1; }
+        textarea::-webkit-scrollbar-thumb { background: #cbd5e1; border-radius: 4px; }
+        
+        /* 预览区 */
+        #preview-list {
+            display: flex;
+            flex-direction: column;
+            gap: 40px;
+            width: 100%;
+            align-items: center;
+            padding-bottom: 100px;
+        }
+
+        /* 基础卡片容器 */
+        .capture-target {
+            box-sizing: border-box;
+            position: relative;
+            transition: all 0.3s ease;
+        }
+
+        /* Mac 风格样式 */
+        .style-mac .inner-window {
+            border-radius: 12px;
+            background: rgba(255, 255, 255, 0.96);
+            box-shadow: 0 20px 40px -10px rgba(0, 0, 0, 0.2);
+            overflow: hidden;
+            display: flex;
+            flex-direction: column;
+        }
+
+        /* iPhone 风格核心样式 (纯CSS绘制) */
+        .style-iphone {
+            /* 强制手机宽度 */
+            width: 440px !important; 
+        }
+
+        .style-iphone .inner-window {
+            background: #fff;
+            border-radius: 50px; /* 手机大圆角 */
+            border: 12px solid #2d2d2d; /* 屏幕黑边 */
+            box-shadow: 
+                0 0 0 4px #4a4a4a, /* 钛金属外框 */
+                0 20px 50px -10px rgba(0,0,0,0.5); /* 手机投影 */
+            overflow: hidden;
+            position: relative;
+            display: flex;
+            flex-direction: column;
+        }
+
+        /* iPhone 灵动岛 */
+        .dynamic-island {
+            position: absolute;
+            top: 12px;
+            left: 50%;
+            transform: translateX(-50%);
+            width: 120px;
+            height: 35px;
+            background: #000;
+            border-radius: 20px;
+            z-index: 20;
+        }
+
+        /* Markdown 样式微调 */
+        .prose code { color: #ec4899 !important; background-color: #f3f4f6; padding: 2px 4px; border-radius: 4px; font-family: 'JetBrains Mono', monospace; font-weight: 500; font-size: 0.9em;}
+        .prose pre { background-color: #1e293b !important; color: #e2e8f0 !important; border-radius: 8px; margin: 0.5em 0; }
+        .prose blockquote { font-style: normal; border-left-width: 4px; }
+        
+        /* Toggle Switch */
+        .toggle-checkbox:checked { right: 0; border-color: #68D391; }
+        .toggle-checkbox:checked + .toggle-label { background-color: #68D391; }
+
+        /* 主题背景 */
+        .theme-gradient-1 { background: linear-gradient(135deg, #667eea 0%, #764ba2 100%); }
+        .theme-gradient-2 { background: linear-gradient(135deg, #FF9A9E 0%, #FECFEF 100%); }
+        .theme-gradient-3 { background: linear-gradient(135deg, #a18cd1 0%, #fbc2eb 100%); }
+        .theme-gradient-4 { background: linear-gradient(135deg, #84fab0 0%, #8fd3f4 100%); }
+        .theme-orange { background: linear-gradient(135deg, #f6d365 0%, #fda085 100%); }
+        .theme-dark { background: #1e293b; }
+        .theme-solid { background: #cbd5e1; }
+    </style>
+</head>
+<body class="h-screen flex flex-col md:flex-row overflow-hidden">
+
+    <!-- 左侧控制区 -->
+    <div class="w-full md:w-80 lg:w-96 bg-white p-6 flex flex-col border-r border-gray-200 z-10 shadow-lg flex-shrink-0 overflow-y-auto">
+        <h1 class="text-xl font-bold text-gray-800 mb-6 flex items-center gap-2">
+            <span>📱</span> 带壳截图生成器 V7
+        </h1>
+        
+        <!-- 输入框 -->
+        <textarea id="text-input" class="flex-1 w-full p-3 bg-gray-50 border border-gray-200 rounded-lg resize-none focus:outline-none focus:ring-2 focus:ring-indigo-500 text-sm font-mono mb-4" placeholder="输入 Markdown..."></textarea>
+
+        <!-- 模式选择区 -->
+        <div class="bg-gray-50 p-4 rounded-xl border border-gray-100 mb-4 space-y-4">
+            
+            <!-- 设备切换 -->
+            <div class="flex bg-gray-200 rounded-lg p-1">
+                <button onclick="setDeviceMode('mac')" id="btn-mode-mac" class="flex-1 py-1.5 text-xs font-bold rounded-md bg-white shadow-sm text-gray-800 transition-all">Mac Window</button>
+                <button onclick="setDeviceMode('iphone')" id="btn-mode-iphone" class="flex-1 py-1.5 text-xs font-bold rounded-md text-gray-500 hover:text-gray-700 transition-all">iPhone Pro</button>
+            </div>
+
+            <!-- 分页开关 -->
+            <div class="flex items-center justify-between">
+                <span class="text-xs font-bold text-gray-500 uppercase">自动分页</span>
+                <div class="relative inline-block w-10 align-middle select-none">
+                    <input type="checkbox" id="split-toggle" class="toggle-checkbox absolute block w-5 h-5 rounded-full bg-white border-4 appearance-none cursor-pointer border-gray-300 transition-all duration-200 right-4"/>
+                    <label for="split-toggle" class="toggle-label block overflow-hidden h-5 rounded-full bg-gray-300 cursor-pointer"></label>
+                </div>
+            </div>
+            
+            <div id="split-height-control" class="hidden">
+                <div class="flex justify-between items-center mb-1">
+                    <span class="text-xs text-gray-400">单页最大高度</span>
+                    <span id="max-height-value" class="text-xs text-indigo-600 font-bold">550px</span>
+                </div>
+                <input type="range" id="max-height-slider" min="300" max="1000" step="50" value="550" class="w-full h-1 bg-gray-200 rounded-lg appearance-none cursor-pointer">
+            </div>
+        </div>
+
+        <!-- 样式控制 -->
+        <div class="bg-gray-50 p-4 rounded-xl border border-gray-100 mb-6 space-y-4">
+            <div>
+                <label class="text-xs font-bold text-gray-500 uppercase block mb-2">背景边距</label>
+                <input type="range" id="padding-slider" min="0" max="100" value="40" class="w-full h-1 bg-gray-200 rounded-lg appearance-none cursor-pointer">
+            </div>
+            
+            <div>
+                <label class="text-xs font-bold text-gray-500 uppercase block mb-2">背景主题</label>
+                <div class="grid grid-cols-7 gap-2">
+                    <button onclick="changeTheme('theme-gradient-1')" class="w-6 h-6 rounded-full theme-gradient-1 ring-1 ring-offset-1 ring-transparent focus:ring-indigo-500"></button>
+                    <button onclick="changeTheme('theme-gradient-2')" class="w-6 h-6 rounded-full theme-gradient-2 ring-1 ring-offset-1 ring-transparent focus:ring-indigo-500"></button>
+                    <button onclick="changeTheme('theme-gradient-3')" class="w-6 h-6 rounded-full theme-gradient-3 ring-1 ring-offset-1 ring-transparent focus:ring-indigo-500"></button>
+                    <button onclick="changeTheme('theme-gradient-4')" class="w-6 h-6 rounded-full theme-gradient-4 ring-1 ring-offset-1 ring-transparent focus:ring-indigo-500"></button>
+                    <button onclick="changeTheme('theme-orange')" class="w-6 h-6 rounded-full theme-orange ring-1 ring-offset-1 ring-transparent focus:ring-indigo-500"></button>
+                    <button onclick="changeTheme('theme-dark')" class="w-6 h-6 rounded-full theme-dark ring-1 ring-offset-1 ring-transparent focus:ring-indigo-500"></button>
+                    <button onclick="changeTheme('theme-solid')" class="w-6 h-6 rounded-full theme-solid ring-1 ring-offset-1 ring-transparent focus:ring-indigo-500"></button>
+                </div>
+            </div>
+        </div>
+
+        <button id="download-btn" class="w-full bg-black hover:bg-gray-800 text-white font-bold py-3 px-4 rounded-xl shadow-lg transition transform active:scale-[0.98]">
+            生成图片 (PNG/Zip)
+        </button>
+    </div>
+
+    <!-- 预览区 -->
+    <div class="flex-1 bg-gray-200 overflow-y-auto p-8 relative">
+        <div class="absolute top-4 right-6 text-gray-500 text-xs font-mono bg-gray-300 px-2 py-1 rounded" id="page-count-display">1 PAGE</div>
+        <div id="preview-list"></div>
+    </div>
+
+    <script>
+        marked.use({ breaks: true, gfm: true });
+
+        // State
+        let state = {
+            theme: 'theme-gradient-1',
+            mode: 'mac', // 'mac' or 'iphone'
+            split: false,
+            splitHeight: 550,
+            padding: 40
+        };
+
+        // DOM Elements
+        const textInput = document.getElementById('text-input');
+        const previewList = document.getElementById('preview-list');
+        const splitToggle = document.getElementById('split-toggle');
+        const maxHeightSlider = document.getElementById('max-height-slider');
+        const paddingSlider = document.getElementById('padding-slider');
+        const downloadBtn = document.getElementById('download-btn');
+        const pageCountDisplay = document.getElementById('page-count-display');
+        
+        // Initial Text
+        const placeholder = `# 📱 V7 带壳截图
+
+现在支持 **iPhone Pro** 样式了！
+
+## 功能亮点
+1. **纯 CSS 绘制**：无需图片素材，渲染极快。
+2. **灵动岛**：完美的黑色胶囊区域。
+3. **真实状态栏**：信号、WiFi、电量一应俱全。
+
+### 适用场景
+非常适合发布到：
+- 小红书 (Red)
+- Twitter / X
+- 朋友圈九宫格
+
+\`\`\`css
+.iphone-15-pro {
+  border: titanium;
+  island: dynamic;
+}
+\`\`\`
+
+> 💡 提示：点击左侧的 "iPhone Pro" 按钮切换模式，然后打开 "自动分页" 看看效果！
+`;
+        textInput.value = placeholder;
+
+        // --- Render Logic ---
+
+        function getHeaderHTML() {
+            if (state.mode === 'mac') {
+                return `
+                <div class="h-8 bg-gray-50/90 border-b border-gray-200/50 flex items-center px-4 space-x-2 shrink-0">
+                    <div class="w-3 h-3 rounded-full bg-[#ff5f56]"></div>
+                    <div class="w-3 h-3 rounded-full bg-[#ffbd2e]"></div>
+                    <div class="w-3 h-3 rounded-full bg-[#27c93f]"></div>
+                </div>`;
+            } else {
+                // iPhone Status Bar
+                const time = new Date().toLocaleTimeString('en-US', { hour: 'numeric', minute: '2-digit', hour12: false });
+                return `
+                <div class="h-12 bg-white flex items-end justify-between px-6 pb-1 shrink-0 select-none relative z-10">
+                    <div class="font-bold text-sm text-black tracking-wide">${time}</div>
+                    <div class="dynamic-island"></div> <!-- 灵动岛 -->
+                    <div class="flex items-center gap-1.5 opacity-90">
+                        <!-- Signal -->
+                        <svg class="w-4 h-4 text-black" fill="currentColor" viewBox="0 0 24 24"><path d="M12 2C6.48 2 2 6.48 2 12s4.48 10 10 10 10-4.48 10-10S17.52 2 12 2zm-1 14H9v-2h2v2zm0-4H9V7h2v5z"/></svg>
+                        <!-- Wifi -->
+                        <svg class="w-4 h-4 text-black" fill="currentColor" viewBox="0 0 24 24"><path d="M12.01 21.49L23.64 7c-.45-.34-4.93-4-11.64-4C5.28 3 .81 6.66.36 7l11.63 14.49.01.01.01-.01z"/></svg>
+                        <!-- Battery -->
+                        <svg class="w-5 h-5 text-black" fill="currentColor" viewBox="0 0 24 24"><path d="M17 5v14h-2V5h2m-4 2v10h-2V7h2m-4 4v6H7v-6h2m10-6h-2V3h-2v2h-2V3h-2v2H7c-1.1 0-2 .9-2 2v14c0 1.1.9 2 2 2h10c1.1 0 2-.9 2-2V5c0-1.1-.9-2-2-2z"/></svg>
+                    </div>
+                </div>`;
+            }
+        }
+
+        function getFooterHTML(pageIndex, totalPages) {
+            if (state.mode === 'mac') {
+                return `
+                <div class="bg-gray-50/80 px-6 py-2 border-t border-gray-200/50 flex justify-between items-center shrink-0">
+                    <span class="text-[10px] text-gray-400 font-mono">ANTIGRAVITY</span>
+                    <span class="text-[10px] text-gray-400 font-mono">${totalPages > 1 ? `${pageIndex+1}/${totalPages}` : 'MD'}</span>
+                </div>`;
+            } else {
+                // iPhone Home Indicator
+                return `
+                <div class="h-8 bg-white shrink-0 flex justify-center items-center">
+                    <div class="w-32 h-1 bg-gray-800 rounded-full mb-2"></div>
+                </div>`;
+            }
+        }
+
+        function createCard(contentHtml, pageIndex, totalPages) {
+            const wrapper = document.createElement('div');
+            // iPhone 模式下，外层需要特定宽度，或者利用 flex 居中
+            wrapper.className = `capture-target ${state.theme} ${state.mode === 'iphone' ? 'style-iphone' : 'style-mac'}`;
+            wrapper.style.padding = `${state.padding}px`;
+            if (state.mode === 'mac') {
+                wrapper.style.width = '100%';
+                wrapper.style.maxWidth = '640px';
+                wrapper.style.borderRadius = '20px';
+            } else {
+                wrapper.style.borderRadius = '60px'; // 背景圆角适应手机
+            }
+
+            const inner = document.createElement('div');
+            inner.className = 'inner-window w-full relative h-full';
+            
+            // Content Area
+            const contentDiv = `
+                <div class="px-6 py-4 bg-white flex-1 overflow-hidden relative">
+                    <div class="prose prose-slate max-w-none prose-sm">
+                        ${contentHtml}
+                    </div>
+                </div>`;
+
+            inner.innerHTML = getHeaderHTML() + contentDiv + getFooterHTML(pageIndex, totalPages);
+            wrapper.appendChild(inner);
+            return wrapper;
+        }
+
+        function render() {
+            const fullHtml = marked.parse(textInput.value);
+            previewList.innerHTML = '';
+
+            // Calculate Pagination
+            let pages = [];
+            if (!state.split) {
+                pages = [fullHtml];
+            } else {
+                // Calculation Logic (Simulated for brevity, reusing logic from V6)
+                const tempDiv = document.createElement('div');
+                tempDiv.className = 'prose prose-slate max-w-none prose-sm';
+                tempDiv.style.width = state.mode === 'iphone' ? '370px' : '580px'; // Approx inner width
+                tempDiv.style.visibility = 'hidden';
+                tempDiv.style.position = 'absolute';
+                tempDiv.innerHTML = fullHtml;
+                document.body.appendChild(tempDiv);
+
+                const nodes = Array.from(tempDiv.children);
+                let currentContent = [];
+                let currentH = 0;
+                
+                nodes.forEach(node => {
+                    const h = node.offsetHeight + 16; // rough margin
+                    if (currentH + h > state.splitHeight && currentContent.length > 0) {
+                        pages.push(currentContent.map(n => n.outerHTML).join(''));
+                        currentContent = [];
+                        currentH = 0;
+                    }
+                    currentContent.push(node);
+                    currentH += h;
+                });
+                if (currentContent.length) pages.push(currentContent.map(n => n.outerHTML).join(''));
+                document.body.removeChild(tempDiv);
+            }
+
+            // Render Cards
+            pages.forEach((pageHtml, idx) => {
+                previewList.appendChild(createCard(pageHtml, idx, pages.length));
+            });
+            
+            pageCountDisplay.innerText = `${pages.length} PAGE${pages.length > 1 ? 'S' : ''}`;
+        }
+
+        // --- Event Listeners ---
+
+        window.setDeviceMode = (mode) => {
+            state.mode = mode;
+            // Update buttons UI
+            document.getElementById('btn-mode-mac').className = mode === 'mac' 
+                ? 'flex-1 py-1.5 text-xs font-bold rounded-md bg-white shadow-sm text-gray-800 transition-all'
+                : 'flex-1 py-1.5 text-xs font-bold rounded-md text-gray-500 hover:text-gray-700 transition-all';
+            document.getElementById('btn-mode-iphone').className = mode === 'iphone'
+                 ? 'flex-1 py-1.5 text-xs font-bold rounded-md bg-white shadow-sm text-gray-800 transition-all'
+                 : 'flex-1 py-1.5 text-xs font-bold rounded-md text-gray-500 hover:text-gray-700 transition-all';
+            render();
+        };
+
+        window.changeTheme = (theme) => { state.theme = theme; render(); };
+        
+        textInput.addEventListener('input', render);
+        
+        splitToggle.addEventListener('change', (e) => {
+            state.split = e.target.checked;
+            document.getElementById('split-height-control').classList.toggle('hidden', !state.split);
+            render();
+        });
+
+        maxHeightSlider.addEventListener('input', (e) => {
+            state.splitHeight = parseInt(e.target.value);
+            document.getElementById('max-height-value').innerText = `${state.splitHeight}px`;
+            render();
+        });
+
+        paddingSlider.addEventListener('input', (e) => {
+            state.padding = parseInt(e.target.value);
+            render();
+        });
+
+        // Download
+        downloadBtn.addEventListener('click', async () => {
+            const cards = document.querySelectorAll('.capture-target');
+            if(!cards.length) return;
+            
+            downloadBtn.innerText = '渲染中...';
+            downloadBtn.disabled = true;
+
+            await new Promise(r => setTimeout(r, 200)); // wait for layout
+
+            if (cards.length === 1) {
+                const canvas = await html2canvas(cards[0], { scale: 3, useCORS: true, backgroundColor: null });
+                const link = document.createElement('a');
+                link.download = `screenshot_${state.mode}_${Date.now()}.png`;
+                link.href = canvas.toDataURL();
+                link.click();
+            } else {
+                const zip = new JSZip();
+                for (let i = 0; i < cards.length; i++) {
+                    const canvas = await html2canvas(cards[i], { scale: 3, useCORS: true, backgroundColor: null });
+                    const blob = await new Promise(r => canvas.toBlob(r));
+                    zip.file(`slide_${i+1}.png`, blob);
+                }
+                const content = await zip.generateAsync({type:"blob"});
+                saveAs(content, `slides_${Date.now()}.zip`);
+            }
+            downloadBtn.innerText = '生成图片 (PNG/Zip)';
+            downloadBtn.disabled = false;
+        });
+
+        // Init
+        render();
+
+    </script>
+</body>
+</html>

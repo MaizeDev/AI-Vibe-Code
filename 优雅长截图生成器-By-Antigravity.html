@@ -1,0 +1,206 @@
+<!DOCTYPE html>
+<html lang="zh-CN">
+<head>
+    <meta charset="UTF-8">
+    <meta name="viewport" content="width=device-width, initial-scale=1.0">
+    <title>优雅长截图生成器 - By Antigravity</title>
+    <!-- 引入 Tailwind CSS 进行快速样式开发 -->
+    <script src="https://cdn.tailwindcss.com"></script>
+    <!-- 引入 html2canvas 用于截图 -->
+    <script src="https://cdnjs.cloudflare.com/ajax/libs/html2canvas/1.4.1/html2canvas.min.js"></script>
+    <!-- 引入 Google Fonts -->
+    <link href="https://fonts.googleapis.com/css2?family=Noto+Sans+SC:wght@300;400;500;700&family=JetBrains+Mono&display=swap" rel="stylesheet">
+    
+    <style>
+        body {
+            font-family: 'Noto Sans SC', sans-serif;
+            background-color: #f3f4f6;
+        }
+        
+        /* 自定义滚动条 */
+        textarea::-webkit-scrollbar {
+            width: 8px;
+        }
+        textarea::-webkit-scrollbar-track {
+            background: #f1f1f1; 
+        }
+        textarea::-webkit-scrollbar-thumb {
+            background: #cbd5e1; 
+            border-radius: 4px;
+        }
+        textarea::-webkit-scrollbar-thumb:hover {
+            background: #94a3b8; 
+        }
+
+        /* 预览区域的样式，这将是被截图的部分 */
+        #capture-target {
+            transition: all 0.3s ease;
+        }
+        
+        .glass-effect {
+            background: rgba(255, 255, 255, 0.95);
+            backdrop-filter: blur(10px);
+            box-shadow: 0 25px 50px -12px rgba(0, 0, 0, 0.25);
+        }
+
+        /* 不同的背景主题 */
+        .theme-gradient-1 { background: linear-gradient(135deg, #667eea 0%, #764ba2 100%); }
+        .theme-gradient-2 { background: linear-gradient(135deg, #FF9A9E 0%, #FECFEF 100%); }
+        .theme-gradient-3 { background: linear-gradient(135deg, #a18cd1 0%, #fbc2eb 100%); }
+        .theme-gradient-4 { background: linear-gradient(135deg, #84fab0 0%, #8fd3f4 100%); }
+        .theme-dark { background: #1e293b; }
+    </style>
+</head>
+<body class="h-screen flex flex-col md:flex-row overflow-hidden">
+
+    <!-- 左侧控制面板 -->
+    <div class="w-full md:w-1/3 bg-white p-6 flex flex-col border-r border-gray-200 z-10 shadow-lg">
+        <h1 class="text-2xl font-bold text-gray-800 mb-2">📸 文本转长图</h1>
+        <p class="text-sm text-gray-500 mb-6">输入文本，右侧实时预览，一键生成美观图片。</p>
+        
+        <!-- 文本输入 -->
+        <label class="text-xs font-semibold text-gray-400 uppercase tracking-wider mb-2">输入内容</label>
+        <textarea id="text-input" class="flex-1 w-full p-4 bg-gray-50 border border-gray-200 rounded-lg resize-none focus:outline-none focus:ring-2 focus:ring-indigo-500 text-gray-700 leading-relaxed mb-6" placeholder="在这里粘贴你的长文本..."></textarea>
+
+        <!-- 选项设置 -->
+        <div class="mb-6">
+            <label class="text-xs font-semibold text-gray-400 uppercase tracking-wider mb-2 block">选择背景风格</label>
+            <div class="flex space-x-3">
+                <button onclick="changeTheme('theme-gradient-1')" class="w-8 h-8 rounded-full theme-gradient-1 ring-2 ring-offset-2 ring-transparent hover:ring-gray-300 focus:ring-indigo-500"></button>
+                <button onclick="changeTheme('theme-gradient-2')" class="w-8 h-8 rounded-full theme-gradient-2 ring-2 ring-offset-2 ring-transparent hover:ring-gray-300 focus:ring-indigo-500"></button>
+                <button onclick="changeTheme('theme-gradient-3')" class="w-8 h-8 rounded-full theme-gradient-3 ring-2 ring-offset-2 ring-transparent hover:ring-gray-300 focus:ring-indigo-500"></button>
+                <button onclick="changeTheme('theme-gradient-4')" class="w-8 h-8 rounded-full theme-gradient-4 ring-2 ring-offset-2 ring-transparent hover:ring-gray-300 focus:ring-indigo-500"></button>
+                <button onclick="changeTheme('theme-dark')" class="w-8 h-8 rounded-full theme-dark ring-2 ring-offset-2 ring-transparent hover:ring-gray-300 focus:ring-indigo-500"></button>
+            </div>
+        </div>
+
+        <!-- 按钮 -->
+        <button id="download-btn" class="w-full bg-indigo-600 hover:bg-indigo-700 text-white font-bold py-3 px-4 rounded-lg transition duration-200 flex items-center justify-center gap-2 shadow-md">
+            <svg xmlns="http://www.w3.org/2000/svg" class="h-5 w-5" fill="none" viewBox="0 0 24 24" stroke="currentColor">
+                <path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M4 16v1a3 3 0 003 3h10a3 3 0 003-3v-1m-4-4l-4 4m0 0l-4-4m4 4V4" />
+            </svg>
+            生成并下载截图
+        </button>
+    </div>
+
+    <!-- 右侧预览区域 (灰色背景) -->
+    <div class="flex-1 bg-gray-100 overflow-y-auto p-8 flex items-start justify-center" id="preview-container">
+        
+        <!-- 截图目标 (Capture Target) -->
+        <!-- 这是我们要转换成图片的 DOM 元素 -->
+        <div id="capture-target" class="theme-gradient-1 p-12 min-h-[600px] w-full max-w-2xl flex items-center justify-center shadow-2xl">
+            
+            <!-- 内容卡片 (模拟 macOS 窗口) -->
+            <div class="glass-effect rounded-xl overflow-hidden w-full relative">
+                <!-- 窗口头部 -->
+                <div class="h-10 bg-white/50 border-b border-gray-100/50 flex items-center px-4 space-x-2">
+                    <div class="w-3 h-3 rounded-full bg-red-400"></div>
+                    <div class="w-3 h-3 rounded-full bg-yellow-400"></div>
+                    <div class="w-3 h-3 rounded-full bg-green-400"></div>
+                    <div class="flex-1 text-center text-xs text-gray-400 font-mono" id="date-display">Snapshot</div>
+                </div>
+                
+                <!-- 文本内容 -->
+                <div class="p-8 bg-white/80 min-h-[300px]">
+                    <div id="text-output" class="prose prose-slate max-w-none text-gray-800 whitespace-pre-wrap leading-7 text-lg font-normal">
+                        请在左侧输入文本...
+                    </div>
+                    
+                    <!-- 底部署名 (可选) -->
+                    <div class="mt-8 pt-4 border-t border-gray-200 flex justify-between items-center">
+                        <span class="text-xs text-gray-400 font-mono">Generated by AI Code</span>
+                        <span class="text-xs text-gray-400">⚫</span>
+                    </div>
+                </div>
+            </div>
+        </div>
+
+    </div>
+
+    <script>
+        // DOM 元素引用
+        const textInput = document.getElementById('text-input');
+        const textOutput = document.getElementById('text-output');
+        const downloadBtn = document.getElementById('download-btn');
+        const captureTarget = document.getElementById('capture-target');
+        const dateDisplay = document.getElementById('date-display');
+
+        // 初始化日期
+        const now = new Date();
+        dateDisplay.innerText = `${now.getFullYear()}-${String(now.getMonth() + 1).padStart(2, '0')}-${String(now.getDate()).padStart(2, '0')}`;
+
+        // 1. 实时预览逻辑
+        textInput.addEventListener('input', (e) => {
+            const val = e.target.value;
+            // 如果为空，显示占位符
+            if (!val) {
+                textOutput.innerText = "请在左侧输入文本...";
+                textOutput.classList.add('text-gray-400');
+            } else {
+                textOutput.innerText = val;
+                textOutput.classList.remove('text-gray-400');
+            }
+        });
+
+        // 2. 切换主题逻辑
+        window.changeTheme = function(themeClass) {
+            // 移除所有主题类
+            captureTarget.classList.remove('theme-gradient-1', 'theme-gradient-2', 'theme-gradient-3', 'theme-gradient-4', 'theme-dark');
+            // 添加新主题
+            captureTarget.classList.add(themeClass);
+        }
+
+        // 3. 截图下载逻辑
+        downloadBtn.addEventListener('click', async () => {
+            // 按钮状态反馈
+            const originalText = downloadBtn.innerHTML;
+            downloadBtn.innerHTML = 'Generating...';
+            downloadBtn.disabled = true;
+            downloadBtn.classList.add('opacity-75', 'cursor-not-allowed');
+
+            try {
+                // 等待一小会儿，确保渲染完成（特别是如果包含大段文字重排）
+                await new Promise(resolve => setTimeout(resolve, 100));
+
+                // 配置 html2canvas
+                const canvas = await html2canvas(captureTarget, {
+                    scale: 2, // 2倍缩放，保证视网膜屏幕下的清晰度
+                    useCORS: true, // 允许跨域图片
+                    backgroundColor: null, // 透明背景
+                    logging: false
+                });
+
+                // 转换为图片数据
+                const image = canvas.toDataURL("image/png");
+
+                // 创建下载链接
+                const link = document.createElement('a');
+                link.href = image;
+                link.download = `snapshot_${Date.now()}.png`;
+                document.body.appendChild(link);
+                link.click();
+                document.body.removeChild(link);
+
+            } catch (err) {
+                console.error("生成截图失败:", err);
+                alert("生成失败，请重试。");
+            } finally {
+                // 恢复按钮状态
+                downloadBtn.innerHTML = originalText;
+                downloadBtn.disabled = false;
+                downloadBtn.classList.remove('opacity-75', 'cursor-not-allowed');
+            }
+        });
+
+        // 初始化示例文本
+        const sampleText = `Hello! \n\n这是一个优雅的长截图生成工具。\n\n1. 你可以在左侧粘贴任何文本：代码、文章段落、或者备忘录。\n2. 右侧会实时渲染成一张精美的卡片。\n3. 点击下方按钮切换背景风格。\n4. 点击“生成并下载截图”即可获得高清图片。\n\n快来试试吧！🚀`;
+        
+        // 只有当输入框为空时才填入示例
+        if(!textInput.value) {
+            textInput.value = sampleText;
+            // 触发 input 事件以更新预览
+            textInput.dispatchEvent(new Event('input'));
+        }
+    </script>
+</body>
+</html>

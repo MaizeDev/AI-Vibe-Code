@@ -1,0 +1,324 @@
+<!DOCTYPE html>
+<html lang="zh-CN">
+<head>
+    <meta charset="UTF-8">
+    <meta name="viewport" content="width=device-width, initial-scale=1.0">
+    <title>优雅长截图生成器 V5 (Markdown版) - By Antigravity</title>
+    
+    <!-- 1. 引入 Tailwind CSS 及其 Typography 插件 -->
+    <script src="https://cdn.tailwindcss.com?plugins=typography"></script>
+    
+    <!-- 2. 引入 Marked.js 用于解析 Markdown -->
+    <script src="https://cdn.jsdelivr.net/npm/marked/marked.min.js"></script>
+    
+    <script src="https://cdnjs.cloudflare.com/ajax/libs/html2canvas/1.4.1/html2canvas.min.js"></script>
+    <link href="https://fonts.googleapis.com/css2?family=Noto+Sans+SC:wght@300;400;500;700&family=JetBrains+Mono:wght@400;500&display=swap" rel="stylesheet">
+    
+    <style>
+        body {
+            font-family: 'Noto Sans SC', sans-serif;
+            background-color: #f3f4f6;
+        }
+        
+        /* 自定义滚动条 */
+        textarea::-webkit-scrollbar { width: 8px; }
+        textarea::-webkit-scrollbar-track { background: #f1f1f1; }
+        textarea::-webkit-scrollbar-thumb { background: #cbd5e1; border-radius: 4px; }
+        textarea::-webkit-scrollbar-thumb:hover { background: #94a3b8; }
+
+        /* 滑动条样式 */
+        input[type=range] {
+            -webkit-appearance: none; 
+            background: transparent; 
+        }
+        input[type=range]::-webkit-slider-thumb {
+            -webkit-appearance: none;
+            height: 16px;
+            width: 16px;
+            border-radius: 50%;
+            background: #4f46e5;
+            margin-top: -6px;
+            cursor: pointer;
+            box-shadow: 0 2px 4px rgba(0,0,0,0.2);
+            transition: transform 0.1s;
+        }
+        input[type=range]::-webkit-slider-thumb:hover {
+            transform: scale(1.2);
+        }
+        input[type=range]::-webkit-slider-runnable-track {
+            width: 100%;
+            height: 4px;
+            background: #e5e7eb;
+            border-radius: 2px;
+        }
+
+        /* 预览区域 */
+        #capture-target {
+            width: 100%;
+            max-width: 720px; /* 稍微加宽一点以适应代码块 */
+            box-sizing: border-box;
+            border-radius: 20px; 
+            overflow: hidden; 
+        }
+        
+        #inner-window {
+            border-radius: 20px;
+            background: rgba(255, 255, 255, 0.96); /* 稍微不透明一点，利于阅读文字 */
+            backdrop-filter: blur(10px);
+            box-shadow: 0 20px 40px -10px rgba(0, 0, 0, 0.2);
+            overflow: hidden; 
+        }
+
+        /* Markdown 内容定制样式 */
+        /* 我们利用 Tailwind Typography 的 prose 类，但在这里微调一些细节 */
+        .prose code {
+            color: #ec4899 !important; /* 粉色代码文字 */
+            background-color: #f3f4f6;
+            padding: 2px 4px;
+            border-radius: 4px;
+            font-family: 'JetBrains Mono', monospace;
+            font-weight: 500;
+        }
+        .prose pre {
+            background-color: #1e293b !important; /* 深色代码块背景 */
+            color: #e2e8f0 !important;
+            border-radius: 8px;
+        }
+        .prose pre code {
+            color: #e2e8f0 !important;
+            background-color: transparent;
+            padding: 0;
+        }
+        .prose blockquote {
+            border-left-color: #6366f1;
+            font-style: italic;
+            background: #f8fafc;
+            padding: 4px 16px;
+            border-radius: 0 8px 8px 0;
+        }
+        .prose a {
+            color: #4f46e5;
+            text-decoration: none;
+        }
+
+        /* 主题样式 */
+        .theme-gradient-1 { background: linear-gradient(135deg, #667eea 0%, #764ba2 100%); }
+        .theme-gradient-2 { background: linear-gradient(135deg, #FF9A9E 0%, #FECFEF 100%); }
+        .theme-gradient-3 { background: linear-gradient(135deg, #a18cd1 0%, #fbc2eb 100%); }
+        .theme-gradient-4 { background: linear-gradient(135deg, #84fab0 0%, #8fd3f4 100%); }
+        .theme-orange { background: linear-gradient(135deg, #f6d365 0%, #fda085 100%); }
+        .theme-dark { background: #1e293b; }
+        .theme-solid { background: #cbd5e1; }
+    </style>
+</head>
+<body class="h-screen flex flex-col md:flex-row overflow-hidden">
+
+    <!-- 左侧控制面板 -->
+    <div class="w-full md:w-80 lg:w-96 bg-white p-6 flex flex-col border-r border-gray-200 z-10 shadow-lg flex-shrink-0 overflow-y-auto">
+        <h1 class="text-xl font-bold text-gray-800 mb-6 flex items-center gap-2">
+            <span>📝</span> 截图生成器 V5
+            <span class="text-[10px] bg-indigo-100 text-indigo-700 px-2 py-0.5 rounded-full">Markdown支持</span>
+        </h1>
+        
+        <!-- 文本输入 -->
+        <div class="flex-1 flex flex-col mb-6">
+            <label class="text-xs font-bold text-gray-400 uppercase tracking-wider mb-2 flex justify-between">
+                <span>输入 Markdown 内容</span>
+                <span class="text-gray-300">支持 MD 语法</span>
+            </label>
+            <textarea id="text-input" class="flex-1 w-full p-3 bg-gray-50 border border-gray-200 rounded-lg resize-none focus:outline-none focus:ring-2 focus:ring-indigo-500 text-sm leading-relaxed font-mono" placeholder="# 标题..."></textarea>
+        </div>
+
+        <!-- 样式控制区 -->
+        <div class="bg-gray-50 p-4 rounded-xl border border-gray-100 mb-6 space-y-5">
+            <div>
+                <div class="flex justify-between items-center mb-2">
+                    <label class="text-xs font-bold text-gray-500 uppercase tracking-wider">图片边距</label>
+                    <span id="padding-value" class="text-xs font-mono text-indigo-600 font-bold">40px</span>
+                </div>
+                <input type="range" id="padding-slider" min="0" max="80" value="40" class="w-full">
+            </div>
+
+            <div>
+                <div class="flex justify-between items-center mb-2">
+                    <label class="text-xs font-bold text-gray-500 uppercase tracking-wider">全局圆角</label>
+                    <span id="radius-value" class="text-xs font-mono text-indigo-600 font-bold">20px</span>
+                </div>
+                <input type="range" id="radius-slider" min="0" max="50" value="20" class="w-full">
+            </div>
+        </div>
+
+        <!-- 主题选择 -->
+        <div class="mb-6">
+            <label class="text-xs font-bold text-gray-400 uppercase tracking-wider mb-3 block">背景风格</label>
+            <div class="grid grid-cols-7 gap-2">
+                <button onclick="changeTheme('theme-gradient-1')" class="w-8 h-8 rounded-full theme-gradient-1 ring-2 ring-offset-1 ring-transparent hover:ring-gray-300 focus:ring-indigo-500 transition transform hover:scale-110"></button>
+                <button onclick="changeTheme('theme-gradient-2')" class="w-8 h-8 rounded-full theme-gradient-2 ring-2 ring-offset-1 ring-transparent hover:ring-gray-300 focus:ring-indigo-500 transition transform hover:scale-110"></button>
+                <button onclick="changeTheme('theme-gradient-3')" class="w-8 h-8 rounded-full theme-gradient-3 ring-2 ring-offset-1 ring-transparent hover:ring-gray-300 focus:ring-indigo-500 transition transform hover:scale-110"></button>
+                <button onclick="changeTheme('theme-gradient-4')" class="w-8 h-8 rounded-full theme-gradient-4 ring-2 ring-offset-1 ring-transparent hover:ring-gray-300 focus:ring-indigo-500 transition transform hover:scale-110"></button>
+                <button onclick="changeTheme('theme-orange')" class="w-8 h-8 rounded-full theme-orange ring-2 ring-offset-1 ring-transparent hover:ring-gray-300 focus:ring-indigo-500 transition transform hover:scale-110"></button>
+                <button onclick="changeTheme('theme-dark')" class="w-8 h-8 rounded-full theme-dark ring-2 ring-offset-1 ring-transparent hover:ring-gray-300 focus:ring-indigo-500 transition transform hover:scale-110"></button>
+                <button onclick="changeTheme('theme-solid')" class="w-8 h-8 rounded-full theme-solid ring-2 ring-offset-1 ring-transparent hover:ring-gray-300 focus:ring-indigo-500 transition transform hover:scale-110"></button>
+            </div>
+        </div>
+
+        <button id="download-btn" class="w-full bg-indigo-600 hover:bg-indigo-700 text-white font-bold py-3 px-4 rounded-lg transition duration-200 flex items-center justify-center gap-2 shadow-md hover:shadow-lg transform active:scale-[0.98]">
+            <svg xmlns="http://www.w3.org/2000/svg" class="h-5 w-5" fill="none" viewBox="0 24 24" stroke="currentColor">
+                <path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M4 16v1a3 3 0 003 3h10a3 3 0 003-3v-1m-4-4l-4 4m0 0l-4-4m4 4V4" />
+            </svg>
+            生成截图
+        </button>
+    </div>
+
+    <!-- 右侧预览区域 -->
+    <div class="flex-1 bg-gray-200 overflow-y-auto flex items-center justify-center p-8" id="preview-container">
+        
+        <div id="capture-target" class="theme-gradient-1 shadow-2xl transition-all duration-200 ease-out" style="padding: 40px; border-radius: 20px;">
+            
+            <div id="inner-window" class="w-full relative" style="border-radius: 20px;">
+                <!-- Header -->
+                <div class="h-10 bg-gray-50/90 border-b border-gray-200/50 flex items-center px-4 space-x-2">
+                    <div class="w-3 h-3 rounded-full bg-[#ff5f56] shadow-sm"></div>
+                    <div class="w-3 h-3 rounded-full bg-[#ffbd2e] shadow-sm"></div>
+                    <div class="w-3 h-3 rounded-full bg-[#27c93f] shadow-sm"></div>
+                </div>
+                
+                <!-- Content -->
+                <div class="p-8 bg-white/95">
+                    <!-- 
+                        关键修改：
+                        1. 移除了 innerText，改为 innerHTML 注入。
+                        2. 添加了 prose 类，这是 Tailwind Typography 插件的核心类，
+                           它会自动给 h1, p, ul, code 等标签添加排版样式。
+                    -->
+                    <div id="text-output" class="prose prose-slate max-w-none">
+                        <!-- 内容将由 JS 渲染 -->
+                    </div>
+                </div>
+                
+                <!-- Footer -->
+                <div class="bg-gray-50/80 px-6 py-3 border-t border-gray-200/50 flex justify-between items-center">
+                    <span class="text-[10px] text-gray-400 font-mono tracking-widest uppercase" id="timestamp">TIME</span>
+                    <span class="text-[10px] text-gray-400 font-mono flex items-center gap-1">
+                        <span>●</span> Markdown Mode
+                    </span>
+                </div>
+            </div>
+        </div>
+
+    </div>
+
+    <script>
+        // 配置 marked 选项：开启换行符支持 (GitHub style)
+        marked.use({
+            breaks: true,
+            gfm: true
+        });
+
+        const textInput = document.getElementById('text-input');
+        const textOutput = document.getElementById('text-output');
+        const downloadBtn = document.getElementById('download-btn');
+        const captureTarget = document.getElementById('capture-target');
+        const innerWindow = document.getElementById('inner-window');
+        
+        const paddingSlider = document.getElementById('padding-slider');
+        const paddingValueLabel = document.getElementById('padding-value');
+        const radiusSlider = document.getElementById('radius-slider');
+        const radiusValueLabel = document.getElementById('radius-value');
+        const timestamp = document.getElementById('timestamp');
+
+        timestamp.innerText = new Date().toLocaleTimeString('en-US', { hour: '2-digit', minute: '2-digit' });
+
+        // 默认 Markdown 演示文案
+        const placeholderMD = `# V5 现已支持 Markdown! 🎉
+
+现在，你的**笔记**和**代码**将会非常漂亮。
+
+## 功能演示
+
+1.  **支持列表**：清晰的排版
+2.  **支持代码块**：程序员的最爱
+3.  **支持引用**：优雅的注释
+
+### 代码示例：
+
+\`\`\`javascript
+// 这是一个代码块示例
+function hello() {
+  console.log("Hello, Markdown!");
+}
+\`\`\`
+
+> 💡 提示：试着把你的 Notion 笔记直接粘贴进来！
+`;
+
+        // 初始化渲染
+        textInput.value = placeholderMD;
+        renderMarkdown(placeholderMD);
+
+        // 核心渲染函数
+        function renderMarkdown(text) {
+            // 使用 marked 库将 markdown 文本转换为 HTML
+            const htmlContent = marked.parse(text);
+            textOutput.innerHTML = htmlContent;
+        }
+
+        // 监听输入，实时解析
+        textInput.addEventListener('input', (e) => {
+            renderMarkdown(e.target.value);
+        });
+
+        // 边距控制
+        paddingSlider.addEventListener('input', (e) => {
+            const val = e.target.value;
+            paddingValueLabel.innerText = `${val}px`;
+            captureTarget.style.padding = `${val}px`;
+        });
+
+        // 圆角控制
+        radiusSlider.addEventListener('input', (e) => {
+            const val = parseInt(e.target.value);
+            radiusValueLabel.innerText = `${val}px`;
+            captureTarget.style.borderRadius = `${val}px`;
+            innerWindow.style.borderRadius = `${val}px`;
+        });
+
+        // 主题切换
+        window.changeTheme = function(themeClass) {
+            captureTarget.className = `shadow-2xl transition-all duration-200 ease-out ${themeClass}`;
+        }
+
+        // 下载逻辑
+        downloadBtn.addEventListener('click', async () => {
+            const originalText = downloadBtn.innerHTML;
+            downloadBtn.innerHTML = '正在渲染...';
+            downloadBtn.disabled = true;
+            downloadBtn.classList.add('opacity-75');
+
+            try {
+                await new Promise(resolve => setTimeout(resolve, 100)); // 稍长一点等待渲染
+
+                const canvas = await html2canvas(captureTarget, {
+                    scale: 2, 
+                    useCORS: true,
+                    backgroundColor: null,
+                    logging: false
+                });
+
+                const link = document.createElement('a');
+                link.href = canvas.toDataURL("image/png");
+                link.download = `markdown_card_${Date.now()}.png`;
+                link.click();
+
+            } catch (err) {
+                console.error(err);
+                alert("生成失败");
+            } finally {
+                downloadBtn.innerHTML = originalText;
+                downloadBtn.disabled = false;
+                downloadBtn.classList.remove('opacity-75');
+            }
+        });
+    </script>
+</body>
+</html>

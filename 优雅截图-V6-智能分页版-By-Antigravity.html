@@ -1,0 +1,413 @@
+<!DOCTYPE html>
+<html lang="zh-CN">
+<head>
+    <meta charset="UTF-8">
+    <meta name="viewport" content="width=device-width, initial-scale=1.0">
+    <title>优雅截图 V6 (智能分页版) - By Antigravity</title>
+    
+    <!-- 样式库 & MD解析 -->
+    <script src="https://cdn.tailwindcss.com?plugins=typography"></script>
+    <script src="https://cdn.jsdelivr.net/npm/marked/marked.min.js"></script>
+    
+    <!-- 截图 & 打包下载库 -->
+    <script src="https://cdnjs.cloudflare.com/ajax/libs/html2canvas/1.4.1/html2canvas.min.js"></script>
+    <script src="https://cdnjs.cloudflare.com/ajax/libs/jszip/3.10.1/jszip.min.js"></script>
+    <script src="https://cdnjs.cloudflare.com/ajax/libs/FileSaver.js/2.0.5/FileSaver.min.js"></script>
+
+    <link href="https://fonts.googleapis.com/css2?family=Noto+Sans+SC:wght@300;400;500;700&family=JetBrains+Mono:wght@400;500&display=swap" rel="stylesheet">
+    
+    <style>
+        body { font-family: 'Noto Sans SC', sans-serif; background-color: #f3f4f6; }
+        
+        textarea::-webkit-scrollbar { width: 8px; }
+        textarea::-webkit-scrollbar-track { background: #f1f1f1; }
+        textarea::-webkit-scrollbar-thumb { background: #cbd5e1; border-radius: 4px; }
+        
+        input[type=range] { -webkit-appearance: none; background: transparent; }
+        input[type=range]::-webkit-slider-thumb {
+            -webkit-appearance: none; height: 16px; width: 16px; border-radius: 50%;
+            background: #4f46e5; margin-top: -6px; cursor: pointer;
+            box-shadow: 0 2px 4px rgba(0,0,0,0.2);
+        }
+        input[type=range]::-webkit-slider-runnable-track {
+            width: 100%; height: 4px; background: #e5e7eb; border-radius: 2px;
+        }
+
+        /* 预览区容器：允许垂直排列多个卡片 */
+        #preview-list {
+            display: flex;
+            flex-direction: column;
+            gap: 40px; /* 卡片之间的间距 */
+            width: 100%;
+            align-items: center;
+            padding-bottom: 100px;
+        }
+
+        /* 单个截图目标样式 */
+        .capture-target {
+            width: 100%;
+            max-width: 600px; /* 朋友圈/手机最佳宽度 */
+            box-sizing: border-box;
+            border-radius: 20px; 
+            overflow: hidden; 
+            position: relative;
+        }
+        
+        .inner-window {
+            border-radius: 20px;
+            background: rgba(255, 255, 255, 0.96);
+            backdrop-filter: blur(10px);
+            box-shadow: 0 20px 40px -10px rgba(0, 0, 0, 0.2);
+            overflow: hidden; 
+            display: flex;
+            flex-direction: column;
+            /* 核心：固定高度还是自适应？分页模式下我们需要限制内容高度 */
+        }
+
+        /* MD 样式微调 */
+        .prose code { color: #ec4899 !important; background-color: #f3f4f6; padding: 2px 4px; border-radius: 4px; font-family: 'JetBrains Mono', monospace; font-weight: 500; }
+        .prose pre { background-color: #1e293b !important; color: #e2e8f0 !important; border-radius: 8px; margin-top: 0.5em; margin-bottom: 0.5em; }
+        .prose p { margin-top: 0.5em; margin-bottom: 0.5em; }
+        .prose h1, .prose h2, .prose h3 { margin-top: 1em; margin-bottom: 0.5em; }
+
+        /* Toggle Switch 样式 */
+        .toggle-checkbox:checked { right: 0; border-color: #68D391; }
+        .toggle-checkbox:checked + .toggle-label { background-color: #68D391; }
+        
+        /* 主题类 */
+        .theme-gradient-1 { background: linear-gradient(135deg, #667eea 0%, #764ba2 100%); }
+        .theme-gradient-2 { background: linear-gradient(135deg, #FF9A9E 0%, #FECFEF 100%); }
+        .theme-gradient-3 { background: linear-gradient(135deg, #a18cd1 0%, #fbc2eb 100%); }
+        .theme-gradient-4 { background: linear-gradient(135deg, #84fab0 0%, #8fd3f4 100%); }
+        .theme-orange { background: linear-gradient(135deg, #f6d365 0%, #fda085 100%); }
+        .theme-dark { background: #1e293b; }
+        .theme-solid { background: #cbd5e1; }
+    </style>
+</head>
+<body class="h-screen flex flex-col md:flex-row overflow-hidden">
+
+    <!-- 左侧控制面板 -->
+    <div class="w-full md:w-80 lg:w-96 bg-white p-6 flex flex-col border-r border-gray-200 z-10 shadow-lg flex-shrink-0 overflow-y-auto">
+        <h1 class="text-xl font-bold text-gray-800 mb-6 flex items-center gap-2">
+            <span>✂️</span> 智能分页生成器
+        </h1>
+        
+        <!-- 文本输入 -->
+        <div class="flex-1 flex flex-col mb-4">
+            <textarea id="text-input" class="flex-1 w-full p-3 bg-gray-50 border border-gray-200 rounded-lg resize-none focus:outline-none focus:ring-2 focus:ring-indigo-500 text-sm leading-relaxed font-mono" placeholder="在此输入 Markdown 内容..."></textarea>
+        </div>
+
+        <!-- 核心功能区 -->
+        <div class="bg-gray-50 p-4 rounded-xl border border-gray-100 mb-4 space-y-4">
+            
+            <!-- 分页开关 -->
+            <div class="flex items-center justify-between">
+                <span class="text-sm font-bold text-gray-600">启用自动分页</span>
+                <div class="relative inline-block w-10 mr-2 align-middle select-none transition duration-200 ease-in">
+                    <input type="checkbox" name="toggle" id="split-toggle" class="toggle-checkbox absolute block w-6 h-6 rounded-full bg-white border-4 appearance-none cursor-pointer border-gray-300"/>
+                    <label for="split-toggle" class="toggle-label block overflow-hidden h-6 rounded-full bg-gray-300 cursor-pointer"></label>
+                </div>
+            </div>
+
+            <!-- 分页高度控制 -->
+            <div id="split-height-control" class="hidden transition-all">
+                <div class="flex justify-between items-center mb-2">
+                    <label class="text-xs font-bold text-gray-500 uppercase">单页最大内容高度</label>
+                    <span id="max-height-value" class="text-xs font-mono text-indigo-600 font-bold">500px</span>
+                </div>
+                <input type="range" id="max-height-slider" min="300" max="1000" step="50" value="500" class="w-full">
+                <p class="text-[10px] text-gray-400 mt-1">高度越小，生成的图片张数越多</p>
+            </div>
+        </div>
+
+        <!-- 样式控制 -->
+        <div class="bg-gray-50 p-4 rounded-xl border border-gray-100 mb-6 space-y-4">
+            <div>
+                <div class="flex justify-between items-center mb-1">
+                    <label class="text-xs font-bold text-gray-500">边距</label>
+                    <span id="padding-value" class="text-xs text-indigo-600">30px</span>
+                </div>
+                <input type="range" id="padding-slider" min="0" max="60" value="30" class="w-full">
+            </div>
+            <div>
+                <div class="flex justify-between items-center mb-1">
+                    <label class="text-xs font-bold text-gray-500">圆角</label>
+                    <span id="radius-value" class="text-xs text-indigo-600">16px</span>
+                </div>
+                <input type="range" id="radius-slider" min="0" max="40" value="16" class="w-full">
+            </div>
+        </div>
+
+        <!-- 主题选择 -->
+        <div class="mb-6 grid grid-cols-7 gap-2">
+            <button onclick="changeTheme('theme-gradient-1')" class="w-6 h-6 rounded-full theme-gradient-1"></button>
+            <button onclick="changeTheme('theme-gradient-2')" class="w-6 h-6 rounded-full theme-gradient-2"></button>
+            <button onclick="changeTheme('theme-gradient-3')" class="w-6 h-6 rounded-full theme-gradient-3"></button>
+            <button onclick="changeTheme('theme-gradient-4')" class="w-6 h-6 rounded-full theme-gradient-4"></button>
+            <button onclick="changeTheme('theme-orange')" class="w-6 h-6 rounded-full theme-orange"></button>
+            <button onclick="changeTheme('theme-dark')" class="w-6 h-6 rounded-full theme-dark"></button>
+            <button onclick="changeTheme('theme-solid')" class="w-6 h-6 rounded-full theme-solid"></button>
+        </div>
+
+        <button id="download-btn" class="w-full bg-indigo-600 hover:bg-indigo-700 text-white font-bold py-3 px-4 rounded-lg shadow-md transition transform active:scale-[0.98]">
+            生成并下载
+        </button>
+    </div>
+
+    <!-- 右侧预览区域 -->
+    <div class="flex-1 bg-gray-200 overflow-y-auto p-8 relative">
+        <div class="absolute top-4 right-6 text-gray-400 text-sm font-mono" id="page-count-display">共 1 张</div>
+        
+        <!-- 这是一个列表，存放一张或多张卡片 -->
+        <div id="preview-list">
+            <!-- 卡片会通过 JS 动态注入到这里 -->
+        </div>
+    </div>
+
+    <script>
+        marked.use({ breaks: true, gfm: true });
+
+        // 状态变量
+        let currentTheme = 'theme-gradient-1';
+        let isSplitMode = false;
+        let splitHeightLimit = 500; // 默认单页内容高度限制
+
+        // DOM 元素
+        const textInput = document.getElementById('text-input');
+        const previewList = document.getElementById('preview-list');
+        const splitToggle = document.getElementById('split-toggle');
+        const splitHeightControl = document.getElementById('split-height-control');
+        const maxHeightSlider = document.getElementById('max-height-slider');
+        const maxHeightValue = document.getElementById('max-height-value');
+        const downloadBtn = document.getElementById('download-btn');
+        const paddingSlider = document.getElementById('padding-slider');
+        const radiusSlider = document.getElementById('radius-slider');
+        const paddingValueLabel = document.getElementById('padding-value');
+        const radiusValueLabel = document.getElementById('radius-value');
+        const pageCountDisplay = document.getElementById('page-count-display');
+
+        // 默认文案 (长文本演示)
+        const placeholderText = `# 智能分页演示
+
+这是一段很长的文本，用于测试**自动分页**功能。
+
+## 为什么需要分页？
+长截图在社交媒体上体验极差：
+1. 图片被压缩看不清
+2. 只有中间一条线
+3. 用户没有耐心看完
+
+## 解决方案
+Antigravity V6 引入了**DOM 测量算法**。
+
+- 它会遍历你的 Markdown 转换后的 HTML 节点。
+- 计算每个段落的高度。
+- 当累计高度超过设定值（例如 500px）时...
+- **自动切割**到下一张卡片！
+
+### 代码测试
+\`\`\`javascript
+const magic = true;
+if (magic) {
+  console.log("It works like charm!");
+}
+\`\`\`
+
+> 试着开启左侧的【启用自动分页】开关，看看效果！
+
+这里还有一些废话来填充高度，确保它能分到第二页。
+这里还有一些废话来填充高度，确保它能分到第二页。
+这里还有一些废话来填充高度，确保它能分到第二页。
+`;
+
+        textInput.value = placeholderText;
+
+        // 工具函数：创建单个卡片 HTML 结构
+        function createCardElement(contentHtml, pageIndex, totalPages) {
+            const padding = paddingSlider.value;
+            const radius = radiusSlider.value;
+
+            const div = document.createElement('div');
+            div.className = `capture-target ${currentTheme}`;
+            div.style.padding = `${padding}px`;
+            div.style.borderRadius = `${radius}px`;
+
+            const inner = document.createElement('div');
+            inner.className = 'inner-window w-full relative';
+            inner.style.borderRadius = `${radius}px`;
+
+            // Header
+            const header = `
+                <div class="h-10 bg-gray-50/90 border-b border-gray-200/50 flex items-center px-4 space-x-2 shrink-0">
+                    <div class="w-3 h-3 rounded-full bg-[#ff5f56] shadow-sm"></div>
+                    <div class="w-3 h-3 rounded-full bg-[#ffbd2e] shadow-sm"></div>
+                    <div class="w-3 h-3 rounded-full bg-[#27c93f] shadow-sm"></div>
+                </div>`;
+            
+            // Content
+            const content = `
+                <div class="p-8 bg-white/95 flex-1">
+                    <div class="prose prose-slate max-w-none">
+                        ${contentHtml}
+                    </div>
+                </div>`;
+
+            // Footer (显示页码)
+            const footer = `
+                <div class="bg-gray-50/80 px-6 py-3 border-t border-gray-200/50 flex justify-between items-center shrink-0">
+                    <span class="text-[10px] text-gray-400 font-mono tracking-widest uppercase">ANTIGRAVITY</span>
+                    <span class="text-[10px] text-gray-400 font-mono flex items-center gap-1">
+                        ${totalPages > 1 ? `Page ${pageIndex + 1} / ${totalPages}` : 'Markdown Mode'}
+                    </span>
+                </div>`;
+
+            inner.innerHTML = header + content + footer;
+            div.appendChild(inner);
+            return div;
+        }
+
+        // 核心：分页渲染逻辑
+        function render() {
+            const rawText = textInput.value;
+            const fullHtml = marked.parse(rawText);
+
+            previewList.innerHTML = ''; // 清空当前预览
+
+            if (!isSplitMode) {
+                // --- 模式A：不分页（长图） ---
+                previewList.appendChild(createCardElement(fullHtml, 0, 1));
+                pageCountDisplay.innerText = "共 1 张";
+            } else {
+                // --- 模式B：智能分页 ---
+                
+                // 1. 创建一个临时的不可见容器来解析 HTML 节点
+                const tempDiv = document.createElement('div');
+                tempDiv.className = 'prose prose-slate max-w-none'; // 保持样式一致以便计算高度
+                tempDiv.style.position = 'absolute';
+                tempDiv.style.visibility = 'hidden';
+                tempDiv.style.width = '520px'; // 模拟卡片内部宽度 (600px - padding)
+                tempDiv.innerHTML = fullHtml;
+                document.body.appendChild(tempDiv);
+
+                const nodes = Array.from(tempDiv.children);
+                let pages = [];
+                let currentPageContent = [];
+                let currentHeight = 0;
+
+                // 2. 遍历节点计算高度
+                nodes.forEach((node) => {
+                    const nodeHeight = node.offsetHeight + parseInt(window.getComputedStyle(node).marginTop) + parseInt(window.getComputedStyle(node).marginBottom);
+                    
+                    // 如果单节点直接超高（比如超长代码块），强行单独一页
+                    if (currentHeight + nodeHeight > splitHeightLimit && currentPageContent.length > 0) {
+                        pages.push(currentPageContent.map(n => n.outerHTML).join(''));
+                        currentPageContent = [];
+                        currentHeight = 0;
+                    }
+                    
+                    currentPageContent.push(node);
+                    currentHeight += nodeHeight;
+                });
+
+                // 最后一页
+                if (currentPageContent.length > 0) {
+                    pages.push(currentPageContent.map(n => n.outerHTML).join(''));
+                }
+
+                // 3. 清理临时 DOM
+                document.body.removeChild(tempDiv);
+
+                // 4. 渲染所有页面
+                pages.forEach((pageHtml, index) => {
+                    previewList.appendChild(createCardElement(pageHtml, index, pages.length));
+                });
+                
+                pageCountDisplay.innerText = `共 ${pages.length} 张`;
+            }
+        }
+
+        // 事件监听
+        textInput.addEventListener('input', render);
+        
+        splitToggle.addEventListener('change', (e) => {
+            isSplitMode = e.target.checked;
+            splitHeightControl.classList.toggle('hidden', !isSplitMode);
+            render();
+        });
+
+        maxHeightSlider.addEventListener('input', (e) => {
+            splitHeightLimit = parseInt(e.target.value);
+            maxHeightValue.innerText = `${splitHeightLimit}px`;
+            render();
+        });
+
+        // 样式滑块实时更新 (由于有多个卡片，这里重新渲染比较简单粗暴，但更稳健)
+        paddingSlider.addEventListener('input', (e) => {
+            paddingValueLabel.innerText = `${e.target.value}px`;
+            render();
+        });
+        radiusSlider.addEventListener('input', (e) => {
+            radiusValueLabel.innerText = `${e.target.value}px`;
+            render();
+        });
+
+        window.changeTheme = function(theme) {
+            currentTheme = theme;
+            render();
+        }
+
+        // 下载逻辑 (支持批量打包)
+        downloadBtn.addEventListener('click', async () => {
+            const cards = document.querySelectorAll('.capture-target');
+            if (cards.length === 0) return;
+
+            const btnOriginalText = downloadBtn.innerText;
+            downloadBtn.innerText = `正在处理 ${cards.length} 张图片...`;
+            downloadBtn.disabled = true;
+
+            try {
+                // 等待一下让 UI 刷新
+                await new Promise(resolve => setTimeout(resolve, 100));
+
+                if (cards.length === 1) {
+                    // 单张直接下载
+                    const canvas = await html2canvas(cards[0], { scale: 2, useCORS: true, backgroundColor: null });
+                    const link = document.createElement('a');
+                    link.href = canvas.toDataURL("image/png");
+                    link.download = `card_${Date.now()}.png`;
+                    link.click();
+                } else {
+                    // 多张打包 Zip
+                    const zip = new JSZip();
+                    const promises = Array.from(cards).map((card, index) => {
+                        return html2canvas(card, { scale: 2, useCORS: true, backgroundColor: null })
+                            .then(canvas => {
+                                return new Promise(resolve => {
+                                    canvas.toBlob(blob => {
+                                        zip.file(`card_${index + 1}.png`, blob);
+                                        resolve();
+                                    });
+                                });
+                            });
+                    });
+
+                    await Promise.all(promises);
+                    const content = await zip.generateAsync({ type: "blob" });
+                    saveAs(content, `cards_batch_${Date.now()}.zip`);
+                }
+
+            } catch (err) {
+                console.error(err);
+                alert('生成出错');
+            } finally {
+                downloadBtn.innerText = btnOriginalText;
+                downloadBtn.disabled = false;
+            }
+        });
+
+        // 初始化
+        render();
+
+    </script>
+</body>
+</html>
