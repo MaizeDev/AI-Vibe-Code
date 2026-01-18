@@ -1,3 +1,133 @@
+## CardView.swift
+
+```swift
+import SwiftUI
+
+struct CardView: View {
+    let text: String
+    let theme: CardTheme
+    let author: String
+    
+    var body: some View {
+        ZStack {
+            // 背景层
+            Rectangle()
+                .fill(theme.background)
+                .ignoresSafeArea()
+            
+            VStack(spacing: 20) {
+                // 装饰性引号
+                HStack {
+                    Image(systemName: "quote.opening")
+                        .font(.system(size: 24))
+                        .foregroundStyle(theme.textColor.opacity(0.6))
+                    Spacer()
+                }
+                
+                // 主要文字内容
+                Text(text.isEmpty ? "在此输入文字..." : text)
+                    .font(.custom(theme.fontName, size: 22))
+                    .lineSpacing(8)
+                    .multilineTextAlignment(.center)
+                    .foregroundStyle(theme.textColor)
+                    .frame(maxWidth: .infinity)
+                    .padding(.horizontal, 10)
+                
+                // 底部署名
+                HStack {
+                    Spacer()
+                    Text("— \(author.isEmpty ? "未名" : author)")
+                        .font(.custom(theme.fontName, size: 14))
+                        .foregroundStyle(theme.textColor.opacity(0.8))
+                        .italic()
+                    Image(systemName: "quote.closing")
+                        .font(.system(size: 14))
+                        .foregroundStyle(theme.textColor.opacity(0.6))
+                }
+                .padding(.top, 10)
+            }
+            .padding(40)
+        }
+        .frame(width: 375, height: 375) // 固定宽高比，方便导出正方形图片
+        .clipShape(RoundedRectangle(cornerRadius: 0)) // 导出时通常不需要圆角，或者在外部加
+    }
+}
+
+```
+
+## CardViewModel.swift
+
+```swift
+//
+//  CardViewModel.swift
+//  demo
+//
+//  Created by wheat on 1/15/26.
+//
+
+
+import SwiftUI
+import Photos
+import Combine
+
+@MainActor
+class CardViewModel: ObservableObject {
+    @Published var inputText: String = "生活不是等待风暴过去，而是学会在雨中跳舞。"
+    @Published var authorText: String = "Antigravity"
+    @Published var selectedTheme: CardTheme = CardTheme.allThemes.first!
+    @Published var showSaveSuccessAlert: Bool = false
+    @Published var errorMessage: String?
+    
+    // 生成并保存图片
+    func saveImage(view: some View, scale: CGFloat) {
+            let renderer = ImageRenderer(content: view)
+            
+            // 使用传入的 scale，而不是 UIScreen.main.scale
+            renderer.scale = scale
+            
+            if let uiImage = renderer.uiImage {
+                saveToAlbum(image: uiImage)
+            } else {
+                self.errorMessage = "图片渲染失败"
+            }
+        }
+    
+    
+    // 在 CardViewModel 中添加
+    func renderImage(view: some View, scale: CGFloat) -> Image? {
+        let renderer = ImageRenderer(content: view)
+        renderer.scale = scale
+        if let uiImage = renderer.uiImage {
+            return Image(uiImage: uiImage)
+        }
+        return nil
+    }
+    
+    private func saveToAlbum(image: UIImage) {
+        PHPhotoLibrary.requestAuthorization(for: .addOnly) { [weak self] status in
+            guard status == .authorized || status == .limited else {
+                Task { @MainActor in
+                    self?.errorMessage = "没有相册权限，请在设置中开启"
+                }
+                return
+            }
+            
+            UIImageWriteToSavedPhotosAlbum(image, nil, nil, nil)
+            
+            Task { @MainActor in
+                self?.showSaveSuccessAlert = true
+            }
+        }
+    }
+}
+
+```
+
+
+
+## ContentView.swift
+
+```swift
 //
 //  ContentView.swift
 //  demo
@@ -174,3 +304,23 @@ struct ThemeButton: View {
 #Preview {
     ContentView()
 }
+
+```
+
+
+
+## Model.swift
+
+```
+、、、、
+```
+
+把上面的 header 和 body 的新样式加到你的 index.html 里。
+
+保存后刷新浏览器，试着往下滚页面，看看导航栏是不是一直粘在顶部不动了？
+
+自己调调 padding-top: 100px; 的值（比如改成 120px 或 80px），找到最舒服的高度（避免内容被导航栏盖住）。
+
+（可选）把 header 的背景色改成半透明：background-color: rgba(236, 240, 241, 0.95);，滚页面时会更有层次感。
+
+完成后在 README.md 写一句：“Day 19：导航栏固定在顶部了！滚页面也不怕找不到菜单，好酷～”
