@@ -9,5 +9,5 @@ import Foundation
 
 /// -  TabView Menus
 enum Tabs: Hashable {
-    case home, discover, settings
+    case home, discover, settings, search
 }

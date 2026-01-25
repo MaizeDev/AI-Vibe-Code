@@ -9,7 +9,18 @@ import SwiftUI
 
 struct HomeView: View {
     var body: some View {
-        Text(/*@START_MENU_TOKEN@*/"Hello, World!"/*@END_MENU_TOKEN@*/)
+        NavigationStack {
+            VStack(spacing: 0) {
+                Image(systemName: "house")
+                    .font(.system(size: 100))
+                
+                Text("Home")
+                    .font(Font.largeTitle)
+            }
+            .foregroundStyle(Color.gray.opacity(0.5))
+            .navigationTitle("Home")
+        }
+        
     }
 }
 
