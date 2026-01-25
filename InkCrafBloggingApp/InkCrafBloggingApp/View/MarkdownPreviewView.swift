@@ -1,3 +1,11 @@
+//
+//  MarkdownPreviewView.swift
+//  InkCrafBloggingApp
+//
+//  Created by wheat on 1/25/26.
+//
+
+
 import SwiftUI
 import WebKit
 import Markdown // 引用 Apple 的 swift-markdown 库
@@ -98,4 +106,17 @@ struct MarkdownPreviewView: UIViewRepresentable {
         
         return "<h3>暂用简易预览</h3><p>为了完美预览，建议引入 Ink 库。</p><hr>" + html
     }
+    
+    // 添加在 MetadataFormView 结构体内部，作为 private 属性
+    private var blogDateFormatter: DateFormatter {
+        let formatter = DateFormatter()
+        // 使用 Hugo/Jekyll 最通用的格式：2023-10-24 14:00:00
+        formatter.dateFormat = "yyyy-MM-dd HH:mm:ss"
+        // 关键点：设置为当前系统时区，这样你选几点，存进去就是几点
+        formatter.timeZone = .current
+        formatter.locale = Locale(identifier: "en_US_POSIX") // 保证格式固定
+        return formatter
+    }
+
 }
+

@@ -2,14 +2,22 @@ import SwiftUI
 
 struct MetadataFormView: View {
     @Binding var metadata: PostMetadata
-    @Binding var isExpanded: Bool // 控制折叠/展开
+    @Binding var isExpanded: Bool
     
-    // 临时的 Date 对象，用于绑定 DatePicker
     @State private var dateObj: Date = Date()
+    
+    // ✅ 关键修复：统一的格式化器
+    private var blogDateFormatter: DateFormatter {
+        let formatter = DateFormatter()
+        formatter.dateFormat = "yyyy-MM-dd HH:mm:ss"
+        formatter.timeZone = .current // 强制使用本地时区
+        formatter.locale = Locale(identifier: "en_US_POSIX")
+        return formatter
+    }
     
     var body: some View {
         VStack(alignment: .leading, spacing: 12) {
-            // --- 顶部栏 (点击折叠/展开) ---
+            // --- 顶部栏 ---
             Button(action: { withAnimation { isExpanded.toggle() } }) {
                 HStack {
                     Image(systemName: "doc.text.image")
@@ -22,14 +30,14 @@ struct MetadataFormView: View {
                         .foregroundStyle(.secondary)
                 }
                 .padding(.vertical, 8)
-                .background(Color.systemBackground) // 确保点击区域完整
+                .background(Color.systemBackground)
             }
             .buttonStyle(.plain)
             
             // --- 折叠区域 ---
             if isExpanded {
                 VStack(spacing: 16) {
-                    // 1. 标题
+                    // 标题
                     HStack {
                         Text("标题")
                             .frame(width: 50, alignment: .leading)
@@ -38,36 +46,35 @@ struct MetadataFormView: View {
                             .textFieldStyle(.roundedBorder)
                     }
                     
-                    // 2. 日期
+                    // 日期
                     HStack {
                         Text("日期")
                             .frame(width: 50, alignment: .leading)
                             .foregroundStyle(.secondary)
+                        
+                        // ✅ 修改：DatePicker
                         DatePicker("", selection: $dateObj, displayedComponents: [.date, .hourAndMinute])
                             .labelsHidden()
                             .onChange(of: dateObj) { _, newValue in
-                                // 将 Date 转回 String (格式 ISO8601)
-                                let formatter = ISO8601DateFormatter()
-                                formatter.formatOptions = [.withInternetDateTime, .withDashSeparatorInDate, .withColonSeparatorInTime]
-                                metadata.date = formatter.string(from: newValue)
+                                // 写入时使用 format
+                                metadata.date = blogDateFormatter.string(from: newValue)
                             }
                         Spacer()
                     }
                     
-                    // 3. Draft 开关
+                    // Draft 开关
                     Toggle(isOn: $metadata.draft) {
                         Text("草稿 (Draft)")
                             .foregroundStyle(.secondary)
                     }
                     
-                    // 4. 简易 Tags 编辑 (逗号分隔)
+                    // Tags
                     HStack(alignment: .top) {
                         Text("标签")
                             .frame(width: 50, alignment: .leading)
                             .foregroundStyle(.secondary)
                             .padding(.top, 6)
                         
-                        // 这里用一个 Binding 转换，把 ["iOS", "Swift"] 转成 "iOS, Swift"
                         TextField("Swift, iOS (逗号分隔)", text: Binding(
                             get: { metadata.tags.joined(separator: ", ") },
                             set: { newValue in
@@ -82,12 +89,8 @@ struct MetadataFormView: View {
                 }
                 .padding(.bottom, 8)
                 .onAppear {
-                    // 初始化日期
-                    // 简单的尝试解析逻辑
-                    let formatter = ISO8601DateFormatter()
-                    if let d = formatter.date(from: metadata.date) {
-                        dateObj = d
-                    }
+                    // ✅ 修改：读取时的兼容逻辑
+                    parseDateString()
                 }
             }
         }
@@ -96,9 +99,41 @@ struct MetadataFormView: View {
         .clipShape(RoundedRectangle(cornerRadius: 12))
         .padding(.horizontal)
     }
+    
+    private func parseDateString() {
+        guard !metadata.date.isEmpty else {
+            // 如果日期为空，初始化为当前时间
+            let now = Date()
+            dateObj = now
+            metadata.date = blogDateFormatter.string(from: now)
+            return
+        }
+        
+        // 1. 尝试标准格式 (yyyy-MM-dd HH:mm:ss)
+        if let d = blogDateFormatter.date(from: metadata.date) {
+            dateObj = d
+            return
+        }
+        
+        // 2. 尝试 ISO8601 (兼容旧数据)
+        let isoFormatter = ISO8601DateFormatter()
+        isoFormatter.formatOptions = [.withInternetDateTime, .withFractionalSeconds]
+        if let d = isoFormatter.date(from: metadata.date) {
+            dateObj = d
+            // 修正：读取旧格式后，立即转为新格式保存回去，保持统一
+            metadata.date = blogDateFormatter.string(from: d)
+            return
+        }
+        
+        isoFormatter.formatOptions = [.withInternetDateTime]
+        if let d = isoFormatter.date(from: metadata.date) {
+            dateObj = d
+            metadata.date = blogDateFormatter.string(from: d)
+            return
+        }
+    }
 }
 
-// 辅助扩展：为了适配颜色
 extension Color {
     static let systemBackground = Color(uiColor: .systemBackground)
 }

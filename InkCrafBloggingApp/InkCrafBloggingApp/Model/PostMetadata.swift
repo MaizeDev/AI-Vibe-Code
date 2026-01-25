@@ -3,63 +3,70 @@ import Yams
 
 struct PostMetadata: Codable, Equatable {
     var title: String = ""
-    var date: String = "" // 为了兼容各种格式，先存为 String，UI 上再转 Date
+    var date: String = ""
     var tags: [String] = []
     var categories: [String] = []
     var draft: Bool = false
     
-    // 自定义键名映射 (有些博客用 tag 而不是 tags)
     enum CodingKeys: String, CodingKey {
-        case title
-        case date
-        case tags, tag
-        case categories, category
-        case draft
+        case title, date, tags, categories, draft
     }
     
-    // 初始化一个空的
     init() {}
 }
 
 // 辅助工具类：负责把全文拆分成 "头信息" 和 "正文"
 struct FrontmatterEngine {
     
-    // 结果元组：(解析出的元数据, 剩余的正文内容, 原始的YAML字符串)
-    static func parse(document: String) -> (PostMetadata, String, String?) {
-        let pattern = "^---\\n([\\s\\S]*?)\\n---\\n"
-        let regex = try! NSRegularExpression(pattern: pattern, options: [])
+    static func parse(document: String) -> (PostMetadata, String) {
+        // 1. 按换行符把文档切成一行一行
+        // 使用 .newlines 自动兼容 \n 和 \r\n
+        let lines = document.components(separatedBy: .newlines)
         
-        // 1. 尝试匹配头部的 --- ... ---
-        if let match = regex.firstMatch(in: document, range: NSRange(document.startIndex..., in: document)) {
-            let yamlRange = Range(match.range(at: 1), in: document)!
-            let fullMatchRange = Range(match.range, in: document)!
-            
-            let yamlString = String(document[yamlRange])
-            let contentString = String(document[fullMatchRange.upperBound...])
-            
-            // 2. 使用 Yams 解析 YAML
-            let decoder = YAMLDecoder()
-            do {
-                let metadata = try decoder.decode(PostMetadata.self, from: yamlString)
-                return (metadata, contentString, yamlString)
-            } catch {
-                print("YAML 解析失败: \(error)")
-                // 解析失败返回空对象，但在正文里保留原始文本，防丢失
-                return (PostMetadata(), document, nil)
+        // 2. 检查第一行是不是 "---"
+        guard let firstLine = lines.first, firstLine.trimmingCharacters(in: .whitespaces) == "---" else {
+            // 没有检测到头部，全文返回
+            return (PostMetadata(), document)
+        }
+        
+        // 3. 寻找第二个 "---" 的位置
+        var endLineIndex = -1
+        for i in 1..<lines.count {
+            if lines[i].trimmingCharacters(in: .whitespaces) == "---" {
+                endLineIndex = i
+                break
             }
         }
         
-        // 没有发现 Frontmatter
-        return (PostMetadata(), document, nil)
+        // 4. 如果找到了闭合的 ---，进行拆分
+        if endLineIndex != -1 {
+            // 提取中间的 YAML
+            let yamlLines = lines[1..<endLineIndex]
+            let yamlString = yamlLines.joined(separator: "\n")
+            
+            // 提取后面的正文
+            let contentLines = lines[(endLineIndex + 1)...]
+            // 去除正文开头可能多余的空行
+            let contentString = contentLines.joined(separator: "\n").trimmingCharacters(in: .whitespacesAndNewlines)
+            
+            // 解析 YAML
+            let decoder = YAMLDecoder()
+            if let metadata = try? decoder.decode(PostMetadata.self, from: yamlString) {
+                return (metadata, contentString)
+            }
+        }
+        
+        // 解析失败，返回默认
+        return (PostMetadata(), document)
     }
     
-    // 把 元数据 + 正文 重新拼合成一个字符串
     static func reconstruct(metadata: PostMetadata, content: String) -> String {
         let encoder = YAMLEncoder()
         do {
             var yaml = try encoder.encode(metadata)
-            // Yams 有时会在末尾多加换行，微调一下
             yaml = yaml.trimmingCharacters(in: .whitespacesAndNewlines)
+            
+            // 确保拼装时，正文上方只有一行空行，保持美观
             return "---\n\(yaml)\n---\n\n\(content)"
         } catch {
             print("YAML 编码失败: \(error)")
