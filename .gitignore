@@ -27,6 +27,51 @@ Icon?
 
 
 # =========================
+# Xcode / iOS / macOS
+# =========================
+
+# Xcode user-specific settings
+xcuserdata/
+*.xcuserstate
+
+# Build products
+build/
+DerivedData/
+
+# Xcode project workspace
+*.xcworkspace
+!default.xcworkspace
+
+# Swift Package Manager
+.swiftpm/
+Package.resolved
+
+# CocoaPods
+Pods/
+
+# Carthage
+Carthage/Build/
+
+# Fastlane
+fastlane/report.xml
+fastlane/Preview.html
+fastlane/screenshots/
+fastlane/test_output/
+
+# Playgrounds
+timeline.xctimeline
+playground.xcworkspace
+
+# Xcode logs & archives
+*.xccheckout
+*.xcscmblueprint
+*.xcarchive
+
+# Simulator
+*.simruntime
+
+
+# =========================
 # 临时文件 / 缓存
 # =========================
 *.log
