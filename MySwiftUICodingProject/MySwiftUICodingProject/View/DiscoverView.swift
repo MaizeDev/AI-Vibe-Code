@@ -16,6 +16,7 @@ struct DiscoverView: View {
 
                 Text("Discover")
                     .font(Font.largeTitle)
+                
             }
             .foregroundStyle(Color.gray.opacity(0.5))
             .navigationTitle("Discover")
