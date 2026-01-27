@@ -9,11 +9,11 @@
 
 NS_ASSUME_NONNULL_BEGIN
 
-// 这个类必须继承自 NSObject，且只能包含 OC 的类型，不能出现 C++ 类型
-@interface MarkdownWrapper : NSObject
+@interface MarkdownBridge : NSObject
 
+// 改名为 parseMarkdown，这样 Swift 调用时就是 parseMarkdown(_:)
+// 不会出现 convert(toHtml:) 这种奇怪的自动重命名
 - (NSString *)parseMarkdown:(NSString *)text;
-- (NSInteger)getWordCount:(NSString *)text;
 
 @end
 

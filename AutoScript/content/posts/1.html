@@ -1,0 +1,195 @@
+<html>
+
+<head>
+    <style>
+        :root {
+            color-scheme: light dark;
+            /* 告诉 WebView 支持两种模式 */
+        }
+
+        body {
+            font-family: -apple-system, BlinkMacSystemFont, "Segoe UI", Helvetica, Arial, sans-serif;
+            font-size: 16px;
+            line-height: 1.6;
+            padding: 30px;
+        }
+
+        /* --- Dark Mode (默认) --- */
+        @media (prefers-color-scheme: dark) {
+            body {
+                color: #c9d1d9;
+                background-color: #0d1117;
+            }
+
+            h1,
+            h2,
+            h3 {
+                color: #ffffff;
+                border-bottom-color: #21262d;
+            }
+
+            pre {
+                background-color: #161b22;
+                border-color: #30363d;
+            }
+
+            code {
+                background-color: rgba(110, 118, 129, 0.4);
+                color: #ff7b72;
+            }
+
+            blockquote {
+                color: #8b949e;
+                border-left-color: #1f6feb;
+                background-color: rgba(31, 111, 235, 0.1);
+            }
+
+            a {
+                color: #58a6ff;
+            }
+
+            strong {
+                color: #f0f6fc;
+            }
+        }
+
+        /* --- Light Mode (白天) --- */
+        @media (prefers-color-scheme: light) {
+            body {
+                color: #24292f;
+                background-color: #ffffff;
+            }
+
+            h1,
+            h2,
+            h3 {
+                color: #1f2328;
+                border-bottom-color: #d0d7de;
+            }
+
+            pre {
+                background-color: #f6f8fa;
+                border-color: #d0d7de;
+            }
+
+            /* 浅灰背景 */
+            code {
+                background-color: rgba(175, 184, 193, 0.2);
+                color: #cf222e;
+            }
+
+            /* 红色代码文字 */
+            pre code {
+                color: #1f2328;
+            }
+
+            blockquote {
+                color: #57606a;
+                border-left-color: #0969da;
+                background-color: #ddf4ff;
+            }
+
+            a {
+                color: #0969da;
+            }
+
+            strong {
+                color: #24292f;
+            }
+        }
+
+        h1 {
+            font-size: 2em;
+            border-bottom-style: solid;
+            border-bottom-width: 1px;
+            padding-bottom: 0.3em;
+            margin-top: 24px;
+        }
+
+        h2 {
+            font-size: 1.5em;
+            border-bottom-style: solid;
+            border-bottom-width: 1px;
+            padding-bottom: 0.3em;
+            margin-top: 24px;
+        }
+
+        pre {
+            border-radius: 6px;
+            padding: 16px;
+            overflow: auto;
+            border-style: solid;
+            border-width: 1px;
+            margin-bottom: 16px;
+        }
+
+        pre code {
+            background-color: transparent;
+            padding: 0;
+            font-family: Menlo, Monaco, monospace;
+        }
+
+        code {
+            padding: 0.2em 0.4em;
+            border-radius: 6px;
+            font-family: Menlo, Monaco, monospace;
+            font-size: 85%;
+        }
+
+        blockquote {
+            border-left-width: 0.25em;
+            border-left-style: solid;
+            padding: 0 1em;
+            margin: 0 0 16px 0;
+        }
+
+        ul,
+        ol {
+            padding-left: 2em;
+            margin-bottom: 16px;
+        }
+
+        li {
+            margin-bottom: 0.25em;
+        }
+
+        a {
+            text-decoration: none;
+        }
+
+        a:hover {
+            text-decoration: underline;
+        }
+
+        img {
+            max-width: 100%;
+            border-radius: 6px;
+        }
+    </style>
+</head>
+
+<body>
+    <h1>性能测试</h1>
+
+    <p>试着快速输入一些文字，你会发现 Preview 不会每敲一个字就闪烁一次，而是当你停顿时才更新。</p>
+
+    <p>
+    <h2>工具栏测试</h2>
+    </p>
+    <p>点击右上角的按钮，可以复制生成的 HTML 代码。</p>
+
+    <pre><code>// C++ Core is ready
+int main() { return 0; }
+</code></pre>
+
+    <p>阿里斯顿放假啦束带结发水电费克莱斯勒地方卢卡斯建档立卡附件阿是老地方</p>
+    <p>拉斯柯达积分离开家水电费了解啊塑料袋咖啡机阿斯兰大富科技</p>
+
+    <p>；阿里斯顿法律框架啊收到啦开发机</p>
+    <p>水电费卡死了快递费</p>
+    <p>阿萨德客服经理撒绝地反击</p>
+
+    <p>我是一个中国人。 这是怎么回事嗯？ 哈哈</p>
+</body>
+
+</html>
