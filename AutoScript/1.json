@@ -1,0 +1,189 @@
+ %   curl https: //x666.me/v1/models \
+    -H "Authorization: Bearer sk-BIMlxWA1ksae6qASYOBDFlW1e4xByrALU9DHOHevCOyAeuyJ"{
+    "data": [
+        {
+            "id": "claude-opus-4-5-thinking",
+            "object": "model",
+            "created": 1626777600,
+            "owned_by": "custom",
+            "supported_endpoint_types": [
+                "gemini",
+                "openai",
+                "anthropic"
+            ]
+        },
+        {
+            "id": "claude-sonnet-4-5",
+            "object": "model",
+            "created": 1626777600,
+            "owned_by": "custom",
+            "supported_endpoint_types": [
+                "gemini",
+                "openai"
+            ]
+        },
+        {
+            "id": "gemini-2.5-flash",
+            "object": "model",
+            "created": 1626777600,
+            "owned_by": "custom",
+            "supported_endpoint_types": [
+                "gemini",
+                "openai",
+                "anthropic"
+            ]
+        },
+        {
+            "id": "gemini-2.5-pro-1m",
+            "object": "model",
+            "created": 1626777600,
+            "owned_by": "custom",
+            "supported_endpoint_types": [
+                "gemini",
+                "openai"
+            ]
+        },
+        {
+            "id": "gemini-3-flash-preview",
+            "object": "model",
+            "created": 1626777600,
+            "owned_by": "custom",
+            "supported_endpoint_types": [
+                "gemini",
+                "openai"
+            ]
+        },
+        {
+            "id": "gemini-3-pro-high",
+            "object": "model",
+            "created": 1626777600,
+            "owned_by": "custom",
+            "supported_endpoint_types": [
+                "gemini",
+                "openai"
+            ]
+        },
+        {
+            "id": "gemini-3-pro-low",
+            "object": "model",
+            "created": 1626777600,
+            "owned_by": "custom",
+            "supported_endpoint_types": [
+                "gemini",
+                "openai"
+            ]
+        },
+        {
+            "id": "gemini-3-pro-preview",
+            "object": "model",
+            "created": 1626777600,
+            "owned_by": "vertex-ai",
+            "supported_endpoint_types": [
+                "gemini",
+                "openai"
+            ]
+        },
+        {
+            "id": "gemini-flash-latest",
+            "object": "model",
+            "created": 1626777600,
+            "owned_by": "custom",
+            "supported_endpoint_types": [
+                "gemini",
+                "openai"
+            ]
+        },
+        {
+            "id": "gpt-4.1-mini",
+            "object": "model",
+            "created": 1626777600,
+            "owned_by": "openai",
+            "supported_endpoint_types": [
+                "openai"
+            ]
+        },
+        {
+            "id": "gpt-4.1-nano",
+            "object": "model",
+            "created": 1626777600,
+            "owned_by": "openai",
+            "supported_endpoint_types": [
+                "openai"
+            ]
+        },
+        {
+            "id": "gpt-4o-mini",
+            "object": "model",
+            "created": 1626777600,
+            "owned_by": "openai",
+            "supported_endpoint_types": [
+                "openai"
+            ]
+        },
+        {
+            "id": "gpt-5-nano",
+            "object": "model",
+            "created": 1626777600,
+            "owned_by": "openai",
+            "supported_endpoint_types": [
+                "openai"
+            ]
+        },
+        {
+            "id": "gpt-5.2",
+            "object": "model",
+            "created": 1626777600,
+            "owned_by": "codex",
+            "supported_endpoint_types": [
+                "openai"
+            ]
+        },
+        {
+            "id": "gpt-5.2-codex-high",
+            "object": "model",
+            "created": 1626777600,
+            "owned_by": "custom",
+            "supported_endpoint_types": [
+                "openai"
+            ]
+        },
+        {
+            "id": "gpt-5.2-codex-low",
+            "object": "model",
+            "created": 1626777600,
+            "owned_by": "custom",
+            "supported_endpoint_types": [
+                "openai"
+            ]
+        },
+        {
+            "id": "gpt-5.2-codex-xhigh",
+            "object": "model",
+            "created": 1626777600,
+            "owned_by": "custom",
+            "supported_endpoint_types": [
+                "openai"
+            ]
+        },
+        {
+            "id": "gpt-5.2-high",
+            "object": "model",
+            "created": 1626777600,
+            "owned_by": "custom",
+            "supported_endpoint_types": [
+                "openai"
+            ]
+        },
+        {
+            "id": "gpt-5.2-xhigh",
+            "object": "model",
+            "created": 1626777600,
+            "owned_by": "custom",
+            "supported_endpoint_types": [
+                "openai"
+            ]
+        }
+    ],
+    "object": "list",
+    "success": true
+}    
