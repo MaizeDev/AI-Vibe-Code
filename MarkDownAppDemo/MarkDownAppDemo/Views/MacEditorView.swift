@@ -3,7 +3,7 @@ import AppKit
 
 struct MacEditorView: NSViewRepresentable {
     @Binding var text: String
-    @Binding var scrollPercentage: Double
+    @Binding var scrollPercentage: Double // 确保 ViewModel 里有这个
 
     func makeNSView(context: Context) -> NSScrollView {
         let scrollView = NSScrollView()
@@ -21,11 +21,10 @@ struct MacEditorView: NSViewRepresentable {
         
         let textView = NSTextView()
         textView.isRichText = false
-        // 使用 SF Mono 或 Menlo，这对对齐公式非常重要
+        // 基础字体使用等宽，保证排版整齐
         textView.font = NSFont.monospacedSystemFont(ofSize: 15, weight: .regular)
         textView.textColor = NSColor.labelColor
-        // 光标颜色设为醒目的颜色
-        textView.insertionPointColor = NSColor.systemPurple
+        textView.insertionPointColor = NSColor.controlAccentColor
         textView.backgroundColor = NSColor.textBackgroundColor
         textView.drawsBackground = true
         
@@ -34,6 +33,7 @@ struct MacEditorView: NSViewRepresentable {
         textView.autoresizingMask = [.width, .height]
         textView.textContainerInset = NSSize(width: 10, height: 10)
         
+        // 关键：语法高亮代理
         textView.textStorage?.delegate = context.coordinator
         textView.delegate = context.coordinator
         
@@ -72,20 +72,25 @@ struct MacEditorView: NSViewRepresentable {
             parent.text = textView.string
         }
         
+        // --- 核心：语法高亮 ---
         func textStorage(_ textStorage: NSTextStorage, didProcessEditing editedMask: NSTextStorageEditActions, range editedRange: NSRange, changeInLength delta: Int) {
             guard editedMask.contains(.editedCharacters) else { return }
             
             let string = textStorage.string
             let wholeRange = NSRange(location: 0, length: textStorage.length)
             
-            // 重置样式
+            // 1. 重置基础样式
             textStorage.removeAttribute(.foregroundColor, range: wholeRange)
-            // 默认字体
-            textStorage.addAttribute(.font, value: NSFont.monospacedSystemFont(ofSize: 15, weight: .regular), range: wholeRange)
+            textStorage.removeAttribute(.font, range: wholeRange)
+            
+            // 默认样式
+            let defaultFont = NSFont.monospacedSystemFont(ofSize: 15, weight: .regular)
+            textStorage.addAttribute(.font, value: defaultFont, range: wholeRange)
             textStorage.addAttribute(.foregroundColor, value: NSColor.labelColor, range: wholeRange)
             
             do {
-                // 1. 标题 (蓝色 + 加粗)
+                // A. 标题 (H1 - H6) - 蓝色加粗
+                // 正则说明：^ 表示行首，#{1,6} 表示1到6个井号，\\s 表示空格
                 let headerRegex = try NSRegularExpression(pattern: "^#{1,6}\\s.*$", options: .anchorsMatchLines)
                 headerRegex.enumerateMatches(in: string, options: [], range: wholeRange) { match, _, _ in
                     if let matchRange = match?.range {
@@ -94,38 +99,44 @@ struct MacEditorView: NSViewRepresentable {
                     }
                 }
                 
-                // 2. 代码块 (弱化灰色)
+                // B. 代码块 (```...```) - 优化配色
+                // 整个代码块变色，不仅是标记
                 let codeBlockRegex = try NSRegularExpression(pattern: "```[\\s\\S]*?```", options: [])
                 codeBlockRegex.enumerateMatches(in: string, options: [], range: wholeRange) { match, _, _ in
                     if let matchRange = match?.range {
+                        // 使用 systemBrown 或 systemOrange 让代码块明显（类似 sublime/vscode 的字符串颜色）
+                        // 在深色模式下，systemOrange 通常很清晰
+                        textStorage.addAttribute(.foregroundColor, value: NSColor.systemOrange, range: matchRange)
+                    }
+                }
+                
+                // C. 行内代码 (`...`) - 红色
+                let inlineCodeRegex = try NSRegularExpression(pattern: "`[^`\\n]+`", options: [])
+                inlineCodeRegex.enumerateMatches(in: string, options: [], range: wholeRange) { match, _, _ in
+                    if let matchRange = match?.range {
+                        textStorage.addAttribute(.foregroundColor, value: NSColor.systemRed, range: matchRange)
+                    }
+                }
+                
+                // D. 数学公式 ($$) - 紫色
+                let mathRegex = try NSRegularExpression(pattern: "\\$\\$[\\s\\S]*?\\$\\$", options: [])
+                mathRegex.enumerateMatches(in: string, options: [], range: wholeRange) { match, _, _ in
+                    if let matchRange = match?.range {
+                        textStorage.addAttribute(.foregroundColor, value: NSColor.systemPurple, range: matchRange)
+                    }
+                }
+                
+                // E. 链接 ([text](url)) - 灰色弱化
+                let linkRegex = try NSRegularExpression(pattern: "\\[(.*?)\\]\\((.*?)\\)", options: [])
+                linkRegex.enumerateMatches(in: string, options: [], range: wholeRange) { match, _, _ in
+                    if let matchRange = match?.range {
                         textStorage.addAttribute(.foregroundColor, value: NSColor.secondaryLabelColor, range: matchRange)
-                    }
-                }
-                
-                // 3. ✅ 公式光标优化 (数学公式专用高亮)
-                // 块级公式 $$ ... $$
-                let mathBlockRegex = try NSRegularExpression(pattern: "\\$\\$[\\s\\S]*?\\$\\$", options: [])
-                mathBlockRegex.enumerateMatches(in: string, options: [], range: wholeRange) { match, _, _ in
-                    if let matchRange = match?.range {
-                        // 使用紫色，明显区分于普通文本
-                        textStorage.addAttribute(.foregroundColor, value: NSColor.systemPurple, range: matchRange)
-                        // 稍微调大一点字体，方便看清上标下标
-                        textStorage.addAttribute(.font, value: NSFont.monospacedSystemFont(ofSize: 15.5, weight: .medium), range: matchRange)
-                    }
-                }
-                
-                // 4. ✅ 行内公式优化 $ ... $
-                // 正则解释：匹配 $ 开头，非换行非$的内容，以 $ 结尾
-                let inlineMathRegex = try NSRegularExpression(pattern: "(?<!\\\\)\\$[^\\$\\n]+\\$", options: [])
-                inlineMathRegex.enumerateMatches(in: string, options: [], range: wholeRange) { match, _, _ in
-                    if let matchRange = match?.range {
-                        // 行内公式也用紫色
-                        textStorage.addAttribute(.foregroundColor, value: NSColor.systemPurple, range: matchRange)
+                        textStorage.addAttribute(.underlineStyle, value: NSUnderlineStyle.single.rawValue, range: matchRange)
                     }
                 }
                 
             } catch {
-                print("Highlight Error: \(error)")
+                print("Regex Error: \(error)")
             }
         }
         
