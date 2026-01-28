@@ -1,0 +1,94 @@
+<html>
+    <head>
+        <meta charset="utf-8">
+        <meta name="viewport" content="width=device-width, initial-scale=1">
+        <link rel="stylesheet" href="https://cdn.jsdelivr.net/npm/katex@0.16.9/dist/katex.min.css">
+        <script src="https://cdn.jsdelivr.net/npm/katex@0.16.9/dist/katex.min.js"></script>
+        <script src="https://cdn.jsdelivr.net/npm/katex@0.16.9/dist/contrib/auto-render.min.js"></script>
+        <style>
+            :root {
+                --bg: #ffffff; --text: #24292f; --border: #d0d7de;
+                --code-bg: #f6f8fa; --pre-bg: #f6f8fa; --quote: #57606a;
+                --link: #0969da; --h-border: #d0d7de;
+            }
+            @media (prefers-color-scheme: dark) {
+                :root {
+                    --bg: #0d1117; --text: #c9d1d9; --border: #30363d;
+                    --code-bg: rgba(110,118,129,0.4); --pre-bg: #161b22;
+                    --quote: #8b949e; --link: #58a6ff; --h-border: #21262d;
+                }
+            }
+            body {
+                font-family: -apple-system, system-ui, sans-serif;
+                font-size: 16px; line-height: 1.6; padding: 30px;
+                color: var(--text); background-color: var(--bg);
+            }
+            h1, h2, h3 { margin-top: 24px; border-bottom: 1px solid var(--h-border); padding-bottom: 0.3em; }
+            pre { background: var(--pre-bg); border: 1px solid var(--border); border-radius: 6px; padding: 16px; overflow: auto; }
+            code { font-family: monospace; font-size: 85%; background: var(--code-bg); padding: 0.2em 0.4em; border-radius: 6px; }
+            pre code { background: transparent; padding: 0; font-size: 100%; color: inherit; }
+            blockquote { border-left: 4px solid var(--border); color: var(--quote); padding-left: 1em; margin: 0; }
+            img { max-width: 100%; border-radius: 6px; }
+            a { color: var(--link); text-decoration: none; }
+        </style>
+    </head>
+    <body><h1>Markdown Editor Demo</h1>
+
+<p>欢迎使用这个基于 <strong>SwiftUI + C++</strong> 混合架构的高性能编辑器。</p>
+
+<h2>1. 基础样式</h2>
+<p>这是一段普通文本。你可以在这里测试 <strong>加粗文字</strong> 的效果，或者使用 <code>行内代码</code> 进行强调。</p>
+
+<h2>2. 列表测试</h2>
+<p>以下是无序列表：</p>
+<li>macOS</li>
+<li>iOS</li>
+<li>iPadOS</li>
+
+<p>以下是有序列表：</p>
+<li>1. 第一步：编写 C++ 核心</li>
+<li>2. 第二步：编写 Swift 界面</li>
+<li>3. 第三步：通过 Objective-C++ 桥接</li>
+
+<h2>3. 代码块测试</h2>
+<p>不仅支持显示，还支持深色/浅色模式自动切换：</p>
+
+<pre><code>cpp
+// C++ Core Example
+#include &lt;iostream&gt;
+
+int main() {
+    std::cout &lt;&lt; &quot;Hello, World!&quot; &lt;&lt; std::endl;
+    return 0;
+}
+</code></pre>
+
+<h2>4. 引用与链接</h2>
+<p>&gt; &quot;编程是21世纪的魔法。&quot; —— 佚名</p>
+
+<p>点击访问 <a href='https://www.apple.com'>Apple 官网</a> 测试链接跳转。</p>
+
+<h2>5. 数学公式 (Beta)</h2>
+<p>虽然还在调试中，但我们预留了位置：</p>
+$$ E = mc^2 $$
+
+    <script>
+        // 定义渲染函数
+        function renderMath() {
+            if (typeof renderMathInElement === 'function') {
+                renderMathInElement(document.body, {
+                    delimiters: [
+                        {left: '$$', right: '$$', display: true},
+                        {left: '$', right: '$', display: false}
+                    ],
+                    throwOnError: false
+                });
+            }
+        }
+        // 立即尝试渲染
+        renderMath();
+        // 以防万一，稍后重试（解决网络加载延迟）
+        setTimeout(renderMath, 500);
+    </script>
+    </body></html>
+    
