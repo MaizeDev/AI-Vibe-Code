@@ -1,11 +1,17 @@
+//
+//  EditorView.swift
+//  PodcastBlogStudio
+//
+//  Created by wheat on 1/29/26.
+//
+
+
 import SwiftUI
 
 struct EditorView: View {
     let post: Post
     var appState: AppState
     
-    // 使用本地 State 绑定编辑器的输入，只有保存时才回写到 AppState
-    // 或者直接绑定到 AppState 的 Binding
     @State private var title: String
     @State private var content: String
     
@@ -17,27 +23,31 @@ struct EditorView: View {
     }
     
     var body: some View {
-        VStack(spacing: 0) {
-            // 标题输入区
-            TextField("Title", text: $title)
-                .font(.title)
-                .padding()
-                .background(Color(nsColor: .controlBackgroundColor))
+        VStack(alignment: .leading, spacing: 16) {
+            // 1. 大标题输入框
+            TextField("Enter Title", text: $title)
+                .font(.system(size: 28, weight: .bold)) // 模仿设计图的大字体
+                .textFieldStyle(.plain) // 去掉默认边框
+                .padding(.horizontal)
+                .padding(.top, 20)
                 .onChange(of: title) { _, newValue in
                     appState.updateSelectedPost(title: newValue, content: content)
                 }
             
             Divider()
+                .padding(.horizontal)
             
-            // 正文编辑区
+            // 2. 正文编辑区
             TextEditor(text: $content)
-                .font(.body)
-                .padding()
+                .font(.body) // 后续可换成等宽字体 .monospaced()
+                .scrollContentBackground(.hidden) // 让背景透明以便统一调色
+                .padding(.horizontal)
+                .padding(.bottom)
                 .onChange(of: content) { _, newValue in
                     appState.updateSelectedPost(title: title, content: newValue)
                 }
         }
-        // 当切换文章时，更新本地 State
+        .background(Color(nsColor: .textBackgroundColor)) // 编辑区白色背景
         .onChange(of: post.id) { _, _ in
             title = post.title
             content = post.content

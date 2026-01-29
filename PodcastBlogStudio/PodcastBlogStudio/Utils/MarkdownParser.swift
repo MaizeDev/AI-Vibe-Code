@@ -1,3 +1,11 @@
+//
+//  MarkdownParser.swift
+//  PodcastBlogStudio
+//
+//  Created by wheat on 1/29/26.
+//
+
+
 import Foundation
 
 /// 负责处理 Markdown 文件内容的合成与解析

@@ -1,3 +1,11 @@
+//
+//  AppState.swift
+//  PodcastBlogStudio
+//
+//  Created by wheat on 1/29/26.
+//
+
+
 import SwiftUI
 import Observation
 

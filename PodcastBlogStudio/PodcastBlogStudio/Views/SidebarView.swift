@@ -1,3 +1,11 @@
+//
+//  SidebarView.swift
+//  PodcastBlogStudio
+//
+//  Created by wheat on 1/29/26.
+//
+
+
 import SwiftUI
 
 struct SidebarView: View {
@@ -5,20 +13,27 @@ struct SidebarView: View {
     
     var body: some View {
         List(selection: $appState.selection) {
-            ForEach(appState.posts) { post in
-                NavigationLink(value: post.id) {
-                    VStack(alignment: .leading) {
-                        Text(post.title)
-                            .font(.headline)
-                        Text(post.createdAt.formatted(date: .numeric, time: .omitted))
-                            .font(.caption)
-                            .foregroundStyle(.secondary)
+            Section(header: Text("Posts")) {
+                ForEach(appState.posts) { post in
+                    NavigationLink(value: post.id) {
+                        HStack {
+                            Text(post.title.isEmpty ? "Untitled" : post.title)
+                                .font(.body)
+                                .lineLimit(1)
+                            
+                            Spacer()
+                            
+                            // 日期显示格式：Apr 5, 2022
+                            Text(post.createdAt.formatted(date: .abbreviated, time: .omitted))
+                                .font(.caption)
+                                .foregroundStyle(.secondary)
+                        }
+                        .padding(.vertical, 2)
                     }
-                    .padding(.vertical, 4)
                 }
             }
         }
-        .listStyle(.sidebar)
-        .navigationTitle("Posts")
+        .listStyle(.sidebar) // macOS 标准侧边栏样式
+        // 移除默认的 navigationTitle，因为设计图没有大标题
     }
 }

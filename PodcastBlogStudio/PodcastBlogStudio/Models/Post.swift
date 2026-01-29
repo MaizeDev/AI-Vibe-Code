@@ -1,3 +1,11 @@
+//
+//  Post.swift
+//  PodcastBlogStudio
+//
+//  Created by wheat on 1/29/26.
+//
+
+
 import Foundation
 
 /// 文章模型

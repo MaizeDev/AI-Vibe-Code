@@ -1,3 +1,11 @@
+//
+//  FileServiceProtocol.swift
+//  PodcastBlogStudio
+//
+//  Created by wheat on 1/29/26.
+//
+
+
 import Foundation
 
 /// 本地文件管理协议

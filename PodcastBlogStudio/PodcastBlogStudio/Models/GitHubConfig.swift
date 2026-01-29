@@ -1,3 +1,11 @@
+//
+//  GitHubConfig.swift
+//  PodcastBlogStudio
+//
+//  Created by wheat on 1/29/26.
+//
+
+
 import Foundation
 
 /// GitHub 仓库配置信息
