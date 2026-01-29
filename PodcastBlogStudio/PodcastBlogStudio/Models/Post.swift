@@ -8,26 +8,16 @@
 
 import Foundation
 
-/// 文章模型
-/// 对应本地的一个 Markdown 文件
 struct Post: Identifiable, Codable, Hashable {
     let id: UUID
     var title: String
     var content: String
     var createdAt: Date
     var updatedAt: Date
-    
-    /// 对应 GitHub 上的文件名 (e.g., "2023-10-01-hello.md")
     var fileName: String
-    
-    /// GitHub 文件的 SHA 值，用于更新文件时防止冲突
-    /// 如果为 nil，表示尚未发布过
     var remoteSHA: String?
     
-    /// 辅助属性：是否已发布
-    var isPublished: Bool {
-        return remoteSHA != nil
-    }
+    var isPublished: Bool { remoteSHA != nil }
     
     init(id: UUID = UUID(), title: String, content: String, createdAt: Date = Date(), remoteSHA: String? = nil) {
         self.id = id
@@ -36,17 +26,30 @@ struct Post: Identifiable, Codable, Hashable {
         self.createdAt = createdAt
         self.updatedAt = createdAt
         self.remoteSHA = remoteSHA
-        
-        // 自动生成文件名: yyyy-MM-dd-title-slug.md
+        // 初始化时调用静态方法生成文件名，传入 id 以防重复
+        self.fileName = Post.generateFileName(title: title, date: createdAt, id: id)
+    }
+    
+    /// 静态辅助方法：根据标题、日期和ID生成文件名
+    static func generateFileName(title: String, date: Date, id: UUID) -> String {
         let formatter = DateFormatter()
         formatter.dateFormat = "yyyy-MM-dd"
-        let dateStr = formatter.string(from: createdAt)
-        // 简单处理标题中的空格和特殊字符
+        let dateStr = formatter.string(from: date)
+        
+        // 核心修改：处理空标题
+        if title.trimmingCharacters(in: .whitespacesAndNewlines).isEmpty {
+            // 如果标题为空，使用 "untitled-UUID前8位" 确保唯一性
+            let uniqueSuffix = id.uuidString.prefix(8).lowercased()
+            return "\(dateStr)-untitled-\(uniqueSuffix).md"
+        }
+        
+        // 正常标题的处理逻辑
         let slug = title.lowercased()
             .components(separatedBy: .whitespacesAndNewlines)
             .joined(separator: "-")
             .filter { "abcdefghijklmnopqrstuvwxyz0123456789-".contains($0) }
         
-        self.fileName = "\(dateStr)-\(slug).md"
+        let finalSlug = slug.isEmpty ? "post" : slug
+        return "\(dateStr)-\(finalSlug).md"
     }
 }

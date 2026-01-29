@@ -5,25 +5,31 @@
 //  Created by wheat on 1/29/26.
 //
 
-
 import SwiftUI
 
 struct SidebarView: View {
     @Bindable var appState: AppState
-    
+
     var body: some View {
         List(selection: $appState.selection) {
             Section(header: Text("Posts")) {
                 ForEach(appState.posts) { post in
                     NavigationLink(value: post.id) {
                         HStack {
-                            Text(post.title.isEmpty ? "Untitled" : post.title)
-                                .font(.body)
-                                .lineLimit(1)
-                            
+                            // 修改显示逻辑
+                            if post.title.isEmpty {
+                                Text("Untitled")
+                                    .font(.body)
+                                    .foregroundStyle(.secondary) // 灰色显示
+                                    .italic()
+                            } else {
+                                Text(post.title)
+                                    .font(.body)
+                                    .lineLimit(1)
+                            }
+
                             Spacer()
-                            
-                            // 日期显示格式：Apr 5, 2022
+
                             Text(post.createdAt.formatted(date: .abbreviated, time: .omitted))
                                 .font(.caption)
                                 .foregroundStyle(.secondary)

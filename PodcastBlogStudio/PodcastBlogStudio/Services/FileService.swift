@@ -1,18 +1,25 @@
+//
+//  FileService.swift
+//  PodcastBlogStudio
+//
+//  Created by wheat on 1/29/26.
+//
+
 import Foundation
 
-/// 本地文件管理服务
 final class FileService: FileServiceProtocol {
     
     private let fileManager = FileManager.default
     
-    /// 根目录：Documents/PodcastBlogStudio/posts/
+    // ... (之前的 postsDirectoryURL 和 init 保持不变) ...
     private var postsDirectoryURL: URL {
         let documents = fileManager.urls(for: .documentDirectory, in: .userDomainMask).first!
         return documents.appending(path: "PodcastBlogStudio/posts")
     }
     
     init() {
-        // 初始化时确保存储目录存在
+        // 建议保留打印路径，方便后续调试
+        print("📂 Local Storage Path: \(postsDirectoryURL.path(percentEncoded: false))")
         try? createDirectoryIfNeeded()
     }
     
@@ -21,77 +28,84 @@ final class FileService: FileServiceProtocol {
             try fileManager.createDirectory(at: postsDirectoryURL, withIntermediateDirectories: true)
         }
     }
-    
-    // MARK: - Save
+
+    // ... (save 和 loadAllPosts 保持不变) ...
     
     func save(post: Post) async throws {
-        // 1. 确保目录存在
         try createDirectoryIfNeeded()
-        
-        // 2. 生成完整内容 (Frontmatter + Body)
         let fileContent = MarkdownParser.generateContent(for: post)
-        
-        // 3. 获取文件路径
         let fileURL = postsDirectoryURL.appending(path: post.fileName)
-        
-        // 4. 写入文件
         try fileContent.write(to: fileURL, atomically: true, encoding: .utf8)
-        print("💾 Saved post: \(fileURL.lastPathComponent)")
+        // print("💾 Saved: \(post.fileName)") // 日志太多可以注释掉
     }
     
-    // MARK: - Load All
-    
     func loadAllPosts() async throws -> [Post] {
+        // ... (保持之前的代码不变) ...
+        // 为了节省篇幅，这里省略 loadAllPosts 的具体实现，请保持原样
+        // 只需要确保 delete 方法也在即可
         try createDirectoryIfNeeded()
-        
-        // 1. 获取目录下所有 .md 文件
         let resourceKeys: [URLResourceKey] = [.creationDateKey, .contentModificationDateKey]
-        let fileURLs = try fileManager.contentsOfDirectory(at: postsDirectoryURL, 
-                                                           includingPropertiesForKeys: resourceKeys)
+        let fileURLs = try fileManager.contentsOfDirectory(at: postsDirectoryURL, includingPropertiesForKeys: resourceKeys)
             .filter { $0.pathExtension == "md" }
         
         var loadedPosts: [Post] = []
-        
-        // 2. 遍历读取
         for url in fileURLs {
             do {
                 let content = try String(contentsOf: url, encoding: .utf8)
                 let parsed = MarkdownParser.parse(fileContent: content)
-                
-                // 从文件属性获取修改时间
                 let values = try url.resourceValues(forKeys: Set(resourceKeys))
                 let updatedAt = values.contentModificationDate ?? Date()
                 
-                // 构造 Post 对象
-                let post = Post(
-                    id: UUID(), // 这里的 ID 每次启动会变，MVP 暂且接受。若需固定 ID，需存入 Frontmatter
+                var post = Post(
+                    id: UUID(),
                     title: parsed.title,
                     content: parsed.body,
                     createdAt: parsed.date,
                     remoteSHA: parsed.sha
                 )
-                // 修正 fileName (以实际文件名为准)
-                var finalPost = post
-                finalPost.fileName = url.lastPathComponent
-                finalPost.updatedAt = updatedAt
-                
-                loadedPosts.append(finalPost)
-            } catch {
-                print("❌ Failed to load file: \(url.lastPathComponent)")
-            }
+                // 关键：加载时必须用实际文件名覆盖，确保同步
+                post.fileName = url.lastPathComponent
+                post.updatedAt = updatedAt
+                loadedPosts.append(post)
+            } catch { print("❌ Load error: \(error)") }
         }
-        
-        // 3. 按日期倒序排列
         return loadedPosts.sorted { $0.createdAt > $1.createdAt }
     }
-    
-    // MARK: - Delete
     
     func delete(post: Post) async throws {
         let fileURL = postsDirectoryURL.appending(path: post.fileName)
         if fileManager.fileExists(atPath: fileURL.path(percentEncoded: false)) {
             try fileManager.removeItem(at: fileURL)
-            print("🗑 Deleted file: \(post.fileName)")
+            print("🗑 Deleted: \(post.fileName)")
         }
     }
+    
+    // MARK: - Rename
+        
+        /// 重命名文件
+        /// - Parameters:
+        ///   - oldFileName: 旧文件名 (e.g. "untitled.md")
+        ///   - newFileName: 新文件名 (e.g. "hello.md")
+        func rename(oldFileName: String, newFileName: String) async throws {
+            let oldURL = postsDirectoryURL.appending(path: oldFileName)
+            let newURL = postsDirectoryURL.appending(path: newFileName)
+            
+            // 1. 基本检查
+            if oldURL == newURL { return }
+            
+            // 2. 确保原文件存在才移动
+            if fileManager.fileExists(atPath: oldURL.path(percentEncoded: false)) {
+                
+                // 安全措施：如果目标文件已存在（极少情况），先删除目标，防止报错
+                if fileManager.fileExists(atPath: newURL.path(percentEncoded: false)) {
+                    try fileManager.removeItem(at: newURL)
+                }
+                
+                try fileManager.moveItem(at: oldURL, to: newURL)
+                print("✏️ Renamed on Disk: \(oldFileName) -> \(newFileName)")
+            } else {
+                // 如果原文件找不到（可能是还没保存过），则不做移动，交由后续的 save() 去创建新文件
+                print("⚠️ Rename source not found: \(oldFileName). Will create new file via save().")
+            }
+        }
 }

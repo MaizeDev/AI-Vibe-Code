@@ -8,33 +8,79 @@
 
 import Foundation
 
-/// 负责处理 Markdown 文件内容的合成与解析
-/// 这里实现“分离存储，动态合成”的策略
 struct MarkdownParser {
     
-    /// 将 Post 对象转换为带有 Frontmatter 的完整 Markdown 字符串
+    // MARK: - Writer (Model -> String)
+    
     static func generateContent(for post: Post) -> String {
         let formatter = DateFormatter()
         formatter.dateFormat = "yyyy-MM-dd HH:mm:ss"
         let dateStr = formatter.string(from: post.createdAt)
         
-        // 简单的 YAML Frontmatter 构造
+        let shaLine = post.remoteSHA != nil ? "sha: \(post.remoteSHA!)\n" : ""
+        
+        // 构造 YAML Frontmatter
+        // 注意：这里我们把 remoteSHA 也存进去，方便下次读取
         let frontmatter = """
         ---
-        title: "\(post.title)"
+        title: \(post.title)
         date: \(dateStr)
-        ---
+        \(shaLine)---
         
         """
         
         return frontmatter + post.content
     }
     
-    /// (预留) 从文件内容解析出 Post 基本信息
-    /// 目前 V1 新建文章为主，后续读取本地文件时会用到此方法
-    static func parse(fileContent: String) -> (title: String, date: Date?, body: String) {
-        // 简单实现：暂时只返回原始内容，后续配合 Regex 完善
-        // TODO: 实现 Frontmatter 正则解析
-        return (title: "Untitled", date: nil, body: fileContent)
+    // MARK: - Reader (String -> Model Data)
+    
+    /// 解析文件内容，返回元数据和正文
+    static func parse(fileContent: String) -> (title: String, date: Date, sha: String?, body: String) {
+        var title = "Untitled"
+        var date = Date()
+        var sha: String? = nil
+        var body = fileContent
+        
+        // 1. 检查是否有 Frontmatter (以 --- 开头)
+        let pattern = #"^---\n([\s\S]*?)\n---\n"# // 匹配两个 --- 之间的内容
+        
+        if let regex = try? NSRegularExpression(pattern: pattern, options: .anchorsMatchLines),
+           let match = regex.firstMatch(in: fileContent, range: NSRange(fileContent.startIndex..., in: fileContent)) {
+            
+            // 提取 Frontmatter 字符串
+            if let range = Range(match.range(at: 1), in: fileContent) {
+                let metadataStr = String(fileContent[range])
+                
+                // 解析每一行 key: value
+                metadataStr.enumerateLines { line, _ in
+                    let parts = line.split(separator: ":", maxSplits: 1).map { $0.trimmingCharacters(in: .whitespaces) }
+                    if parts.count == 2 {
+                        let key = parts[0]
+                        let value = parts[1]
+                        
+                        switch key {
+                        case "title":
+                            title = value
+                        case "date":
+                            let formatter = DateFormatter()
+                            formatter.dateFormat = "yyyy-MM-dd HH:mm:ss"
+                            if let d = formatter.date(from: value) {
+                                date = d
+                            }
+                        case "sha":
+                            sha = value
+                        default: break
+                        }
+                    }
+                }
+            }
+            
+            // 提取正文 (去掉 Frontmatter 部分)
+            if let range = Range(match.range, in: fileContent) {
+                body = String(fileContent[range.upperBound...])
+            }
+        }
+        
+        return (title, date, sha, body)
     }
 }

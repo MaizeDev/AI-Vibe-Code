@@ -24,15 +24,22 @@ struct SettingsPanel: View {
                         .font(.subheadline)
                         .foregroundStyle(.secondary)
 
-                    TextField("Personal Access Token", text: $appState.gitHubConfig.token)
+                    // --- 优化: 使用 SecureField 并增加说明 ---
+                    SecureField("Personal Access Token (repo scope)", text: $appState.gitHubConfig.token)
                         .textFieldStyle(.roundedBorder)
-                    // 实际开发中应该用 SecureField，但为了方便调试MVP先用TextField
 
-                    Button(action: { /* TODO: Validate Token */ }) {
-                        Label("Check Token", systemImage: "person.badge.key")
-                            .frame(maxWidth: .infinity)
-                    }
-                    .controlSize(.large)
+                    Text("Required scope: repo")
+                        .font(.caption2)
+                        .foregroundStyle(.tertiary)
+
+                    // --- 暂时注释掉 Check Token，Step 3 实现 ---
+                    /*
+                     Button(action: { }) {
+                         Label("Check Token", systemImage: "person.badge.key")
+                             .frame(maxWidth: .infinity)
+                     }
+                     .controlSize(.large)
+                     */
                 }
 
                 Divider()
