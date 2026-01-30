@@ -33,7 +33,11 @@ struct MainToolbar: ToolbarContent {
             .keyboardShortcut("p", modifiers: .command)
             
             Button(action: {
-                if let id = appState.selection { appState.deletePost(id: id) }
+                if let id = appState.selection,
+                   let post = appState.posts.first(where: { $0.id == id }) {
+                    // 修改这里：调用请求删除
+                    appState.requestDelete(post: post)
+                }
             }) {
                 Label("Delete", systemImage: "trash")
             }
