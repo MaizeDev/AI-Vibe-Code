@@ -1,10 +1,3 @@
-//
-//  SettingsPanel.swift
-//  PodcastBlogStudio
-//
-//  Created by wheat on 1/29/26.
-//
-
 import SwiftUI
 
 struct SettingsPanel: View {
@@ -24,27 +17,17 @@ struct SettingsPanel: View {
                         .font(.subheadline)
                         .foregroundStyle(.secondary)
 
-                    // --- 优化: 使用 SecureField 并增加说明 ---
                     SecureField("Personal Access Token (repo scope)", text: $appState.gitHubConfig.token)
                         .textFieldStyle(.roundedBorder)
 
                     Text("Required scope: repo")
                         .font(.caption2)
                         .foregroundStyle(.tertiary)
-
-                    // --- 暂时注释掉 Check Token，Step 3 实现 ---
-                    /*
-                     Button(action: { }) {
-                         Label("Check Token", systemImage: "person.badge.key")
-                             .frame(maxWidth: .infinity)
-                     }
-                     .controlSize(.large)
-                     */
                 }
 
                 Divider()
 
-                // Section 2: Repository
+                // Section 2: Repository Info
                 VStack(alignment: .leading, spacing: 8) {
                     Text("Repository")
                         .font(.subheadline)
@@ -52,35 +35,47 @@ struct SettingsPanel: View {
 
                     Text("Owner (Username)")
                         .font(.caption)
-                    TextField("e.g. apple", text: $appState.gitHubConfig.owner)
+                    TextField("e.g. MaizeDev", text: $appState.gitHubConfig.owner)
                         .textFieldStyle(.roundedBorder)
 
                     Text("Repo Name")
                         .font(.caption)
-                    TextField("e.g. swift", text: $appState.gitHubConfig.repo)
+                    TextField("e.g. MaizeDev.github.io", text: $appState.gitHubConfig.repo)
                         .textFieldStyle(.roundedBorder)
+                }
+                
+                Divider()
+                
+                // Section 3: Hexo Configuration (关键修复)
+                VStack(alignment: .leading, spacing: 8) {
+                    Text("Hexo Configuration")
+                        .font(.subheadline)
+                        .foregroundStyle(.secondary)
+                    
+                    // --- 修复：新增 Branch 输入框 ---
+                    Text("Source Branch")
+                        .font(.caption)
+                    TextField("e.g. source", text: $appState.gitHubConfig.branch)
+                        .textFieldStyle(.roundedBorder)
+                    Text("Must match your Hexo source code branch")
+                        .font(.caption2)
+                        .foregroundStyle(.tertiary)
 
-                    // --- 新增：Folder Path ---
-                    Text("Folder Path")
+                    // --- Folder Path ---
+                    Text("Post Path")
                         .font(.caption)
                     TextField("e.g. source/_posts", text: $appState.gitHubConfig.path)
                         .textFieldStyle(.roundedBorder)
-                    Text("Leave empty for root")
-                        .font(.caption2)
-                        .foregroundStyle(.tertiary)
                 }
 
                 Divider()
 
-                // Section 3: Blog URL (Optional for MVP)
+                // Section 4: Blog URL
                 VStack(alignment: .leading, spacing: 8) {
                     Text("Blog URL")
                         .font(.subheadline)
                         .foregroundStyle(.secondary)
-
-                    Text("Site Address:")
-                        .font(.caption)
-                    TextField("https://myblog.github.io", text: .constant("")) // 暂时占位
+                    TextField("https://myblog.github.io", text: .constant(""))
                         .textFieldStyle(.roundedBorder)
                         .disabled(true)
                 }
@@ -89,13 +84,13 @@ struct SettingsPanel: View {
             }
             .padding()
         }
-        .frame(width: 260) // 固定宽度，符合 Inspector 设计
-        .background(Color(nsColor: .controlBackgroundColor)) // 略灰的背景
+        .frame(width: 260)
+        .background(Color(nsColor: .controlBackgroundColor))
         .overlay(
             Rectangle()
                 .fill(Color(nsColor: .separatorColor))
-                .frame(width: 1), // 1像素宽的线
-            alignment: .leading // 贴在左边缘
+                .frame(width: 1),
+            alignment: .leading
         )
     }
 }
