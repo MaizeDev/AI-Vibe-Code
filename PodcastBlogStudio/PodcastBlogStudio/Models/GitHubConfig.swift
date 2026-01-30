@@ -8,14 +8,17 @@
 
 import Foundation
 
-/// GitHub 仓库配置信息
 struct GitHubConfig: Codable, Equatable {
-    var owner: String       // GitHub 用户名 (e.g., "apple")
-    var repo: String        // 仓库名 (e.g., "swift")
-    var token: String       // Personal Access Token
-    var branch: String      // 分支 (默认 main)
+    var owner: String
+    var repo: String
+    var token: String
+    var branch: String
     
-    static let empty = GitHubConfig(owner: "", repo: "", token: "", branch: "main")
+    // --- 新增: 存储路径 ---
+    var path: String // e.g., "source/_posts"
+    
+    // 修改默认值，适配你的 Hexo
+    static let empty = GitHubConfig(owner: "", repo: "", token: "", branch: "main", path: "source/_posts")
     
     var isValid: Bool {
         return !owner.isEmpty && !repo.isEmpty && !token.isEmpty

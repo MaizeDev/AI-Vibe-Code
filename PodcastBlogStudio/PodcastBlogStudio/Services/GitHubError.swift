@@ -5,6 +5,14 @@
 //  Created by wheat on 1/30/26.
 //
 
+
+//
+//  GitHubError.swift
+//  PodcastBlogStudio
+//
+//  Created by wheat on 1/30/26.
+//
+
 import Foundation
 
 enum GitHubError: Error, LocalizedError {

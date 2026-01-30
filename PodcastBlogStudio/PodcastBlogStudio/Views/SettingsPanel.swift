@@ -59,6 +59,15 @@ struct SettingsPanel: View {
                         .font(.caption)
                     TextField("e.g. swift", text: $appState.gitHubConfig.repo)
                         .textFieldStyle(.roundedBorder)
+
+                    // --- 新增：Folder Path ---
+                    Text("Folder Path")
+                        .font(.caption)
+                    TextField("e.g. source/_posts", text: $appState.gitHubConfig.path)
+                        .textFieldStyle(.roundedBorder)
+                    Text("Leave empty for root")
+                        .font(.caption2)
+                        .foregroundStyle(.tertiary)
                 }
 
                 Divider()
