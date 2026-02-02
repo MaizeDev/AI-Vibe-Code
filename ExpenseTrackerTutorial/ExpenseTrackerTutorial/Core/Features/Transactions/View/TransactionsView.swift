@@ -9,7 +9,7 @@ import SwiftUI
 
 // 定义一个 SwiftUI 视图 TransactionsView，用于显示交易列表。
 struct TransactionsView: View {
-    @State private var transactions: [AITransaction] = AITransaction.moks  // 使用 @State 属性包装器来管理交易数组，并用模拟数据初始化。
+    @State private var transactions: [AITransaction] = []  // 使用 @State 属性包装器来管理交易数组，并用模拟数据初始化。
     @State private var showingAdd: Bool = false  // 控制添加交易工作表的显示。
 
     var body: some View {
@@ -49,7 +49,18 @@ struct TransactionsView: View {
                     }
                 }
             }
+            .onAppear {
+                // 在视图显示时加载模拟数据。
+                loadSamples()
+            }
         }
+    }
+}
+
+// 定义一个私有扩展，用于加载模拟数据。
+private extension TransactionsView {
+    func loadSamples() {
+        self.transactions = AITransaction.moks
     }
 }
 
