@@ -14,15 +14,16 @@ struct TransactionRowView: View {
     var body: some View {
         HStack {  // 水平排列视图。
             // 显示类别图标。
-            Image(systemName: tx.category.iconInfo.symbol)
-                .font(.headline)
-                .foregroundColor(tx.category.iconInfo.color)
-                .frame(width: 40, height: 40)
-                .background(tx.category.iconInfo.color.opacity(0.1))
-                .cornerRadius(10)
+//            Image(systemName: tx.category.iconInfo.symbol)
+//                .font(.headline)
+//                .foregroundColor(tx.category.iconInfo.color)
+//                .frame(width: 40, height: 40)
+//                .background(tx.category.iconInfo.color.opacity(0.1))
+//                .cornerRadius(10)
+            CategoryIcon(category: tx.category)
             
             // 垂直排列商户名称和类别名称。
-            VStack(alignment: .leading, spacing: 4) {
+            VStack(alignment: .leading) {
                 Text(tx.merchant)  // 显示商户名称。
                     .font(.headline)
                 Text(tx.category.displayName)  // 显示类别名称。
@@ -32,16 +33,17 @@ struct TransactionRowView: View {
             
             Spacer()  // 添加间隔，将金额推到右侧。
             
-            VStack(alignment: .trailing, spacing: 4) {
+            VStack(alignment: .trailing) {
                 // 显示交易金额，格式化为两位小数。
-                Text("$\(tx.amount, specifier: "%.2f")")
+//                Text("$\(tx.amount, specifier: "%.2f")")
+                Text("$\(tx.amount)")
                     .font(.headline)
                 Text(tx.date.formatted())
                     .font(.subheadline)
                     .foregroundColor(.secondary)
             }
         }
-        .padding(.vertical, 8)  // 添加垂直内边距。
+//        .padding(.vertical, 8)  // 添加垂直内边距。
     }
 }
 
