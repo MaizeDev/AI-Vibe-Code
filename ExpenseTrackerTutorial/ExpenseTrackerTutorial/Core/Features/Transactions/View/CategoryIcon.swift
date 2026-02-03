@@ -1,4 +1,4 @@
-    var body: some View {
+git push origin main    var body: some View {
         Text(/*@START_MENU_TOKEN@*/"Hello, World!"/*@END_MENU_TOKEN@*/)
 >>>>>>> origin/main
     }
@@ -48,9 +48,5 @@ struct CategoryIcon: View {
 }
 
 #Preview {
-<<<<<<< HEAD
     CategoryIcon(category: .dining)
-=======
-    CategoryIcon()
->>>>>>> origin/main
 }
