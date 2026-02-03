@@ -67,7 +67,6 @@ struct TransactionsView: View {
         }
     }
 }
-
 // 定义一个私有扩展，用于加载模拟数据。
 private extension TransactionsView {
     func loadSamples() {
