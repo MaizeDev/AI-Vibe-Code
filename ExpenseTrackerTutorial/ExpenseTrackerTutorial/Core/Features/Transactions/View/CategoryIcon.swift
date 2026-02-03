@@ -1,3 +1,15 @@
+    var body: some View {
+        Text(/*@START_MENU_TOKEN@*/"Hello, World!"/*@END_MENU_TOKEN@*/)
+>>>>>>> origin/main
+    }
+}
+
+#Preview {
+<<<<<<< HEAD
+    CategoryIcon(category: .dining)
+    CategoryIcon()
+>>>>>>> origin/main
+}
 //
 //  CategoryIcon.swift
 //  ExpenseTrackerTutorial
@@ -22,10 +34,23 @@ struct CategoryIcon: View {
                     .fill(info.color.gradient)
             )
             .accessibilityHidden(true)
-        
     }
 }
 
 #Preview {
     CategoryIcon(category: .dining)
+}
+=======
+    var body: some View {
+        Text(/*@START_MENU_TOKEN@*/"Hello, World!"/*@END_MENU_TOKEN@*/)
+>>>>>>> origin/main
+    }
+}
+
+#Preview {
+<<<<<<< HEAD
+    CategoryIcon(category: .dining)
+=======
+    CategoryIcon()
+>>>>>>> origin/main
 }
