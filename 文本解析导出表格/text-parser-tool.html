@@ -1,0 +1,513 @@
+<!DOCTYPE html>
+<html lang="zh-CN">
+<head>
+    <meta charset="UTF-8">
+    <meta name="viewport" content="width=device-width, initial-scale=1.0">
+    <title>文本结构化解析工具 - 左右分栏版</title>
+    <script src="https://cdn.tailwindcss.com"></script>
+    <style>
+        body {
+            font-family: "Microsoft YaHei", "PingFang SC", "Hiragino Sans GB", sans-serif;
+            background-color: #f8fafc;
+            margin: 0;
+            padding: 0;
+            min-height: 100vh;
+        }
+        .large-text {
+            font-size: 1.1rem;
+            line-height: 1.6;
+        }
+        .huge-text {
+            font-size: 1.25rem;
+            font-weight: 600;
+        }
+        .main-title {
+            font-size: 2.2rem;
+            font-weight: 800;
+            color: #1e293b;
+            margin: 0;
+        }
+        .subtitle {
+            font-size: 1.2rem;
+            color: #64748b;
+            margin: 8px 0 24px 0;
+        }
+        textarea {
+            font-family: "Microsoft YaHei", monospace;
+            font-size: 1.1rem;
+            border: 2px solid #cbd5e1;
+            border-radius: 12px;
+            padding: 16px;
+            width: 100%;
+            resize: vertical;
+            min-height: 180px;
+        }
+        textarea:focus {
+            outline: none;
+            border-color: #4f46e5;
+            box-shadow: 0 0 0 3px rgba(79, 70, 229, 0.2);
+        }
+        .field-item {
+            background-color: #f1f5f9;
+            border: 2px solid #e2e8f0;
+            border-radius: 12px;
+            padding: 12px 16px;
+            margin: 4px;
+            display: inline-flex;
+            align-items: center;
+            font-size: 1.1rem;
+            cursor: pointer;
+        }
+        .field-item.selected {
+            background-color: #e0e7ff;
+            border-color: #4f46e5;
+        }
+        .btn-primary {
+            background-color: #4f46e5;
+            color: white;
+            font-size: 1.1rem;
+            font-weight: 600;
+            padding: 12px 20px;
+            border-radius: 12px;
+            border: none;
+            cursor: pointer;
+            transition: all 0.2s;
+            white-space: nowrap;
+        }
+        .btn-primary:hover {
+            background-color: #4338ca;
+            transform: translateY(-1px);
+        }
+        .btn-secondary {
+            background-color: #f1f5f9;
+            color: #334155;
+            font-size: 1.1rem;
+            font-weight: 600;
+            padding: 12px 20px;
+            border-radius: 12px;
+            border: 2px solid #e2e8f0;
+            cursor: pointer;
+            transition: all 0.2s;
+            white-space: nowrap;
+        }
+        .btn-secondary:hover {
+            background-color: #e2e8f0;
+            border-color: #cbd5e1;
+        }
+        .btn-danger {
+            background-color: #ef4444;
+            color: white;
+            font-size: 1.1rem;
+            font-weight: 600;
+            padding: 12px 20px;
+            border-radius: 12px;
+            border: none;
+            cursor: pointer;
+            transition: all 0.2s;
+            white-space: nowrap;
+        }
+        .btn-danger:hover {
+            background-color: #dc2626;
+            transform: translateY(-1px);
+        }
+        table {
+            width: 100%;
+            border-collapse: collapse;
+            font-size: 1.1rem;
+            background: white;
+            border-radius: 12px;
+            overflow: hidden;
+            box-shadow: 0 2px 8px rgba(0, 0, 0, 0.1);
+        }
+        th {
+            background-color: #f1f5f9;
+            padding: 16px;
+            text-align: left;
+            font-weight: 600;
+            color: #1e293b;
+            border-bottom: 2px solid #e2e8f0;
+            min-width: 120px;
+        }
+        td {
+            padding: 16px;
+            border-bottom: 1px solid #e2e8f0;
+            color: #334155;
+            vertical-align: top;
+        }
+        tr:last-child td {
+            border-bottom: none;
+        }
+        tr:hover {
+            background-color: #f8fafc;
+        }
+        .empty-table {
+            text-align: center;
+            padding: 60px 20px;
+            color: #64748b;
+            font-size: 1.2rem;
+            line-height: 1.6;
+        }
+        .step-number {
+            display: inline-flex;
+            align-items: center;
+            justify-content: center;
+            width: 28px;
+            height: 28px;
+            background-color: #4f46e5;
+            color: white;
+            border-radius: 50%;
+            font-weight: bold;
+            margin-right: 10px;
+            font-size: 1rem;
+        }
+        .left-panel {
+            width: 30%;
+            background: white;
+            padding: 24px;
+            border-radius: 16px;
+            box-shadow: 0 2px 12px rgba(0, 0, 0, 0.08);
+            border: 1px solid #e2e8f0;
+            display: flex;
+            flex-direction: column;
+            gap: 24px;
+        }
+        .right-panel {
+            width: 70%;
+            background: white;
+            padding: 24px;
+            border-radius: 16px;
+            box-shadow: 0 2px 12px rgba(0, 0, 0, 0.08);
+            border: 1px solid #e2e8f0;
+            display: flex;
+            flex-direction: column;
+        }
+        .panel-section {
+            display: flex;
+            flex-direction: column;
+            gap: 16px;
+        }
+        .panel-title {
+            font-size: 1.3rem;
+            font-weight: 600;
+            color: #1e293b;
+            margin: 0;
+        }
+        .input-row {
+            display: flex;
+            gap: 12px;
+        }
+        .input-row input {
+            flex: 1;
+            padding: 12px 16px;
+            border: 2px solid #cbd5e1;
+            border-radius: 12px;
+            font-size: 1.1rem;
+        }
+        .input-row input:focus {
+            outline: none;
+            border-color: #4f46e5;
+            box-shadow: 0 0 0 3px rgba(79, 70, 229, 0.2);
+        }
+        .action-buttons {
+            display: flex;
+            gap: 12px;
+            flex-wrap: wrap;
+        }
+        .record-info {
+            background-color: #e0e7ff;
+            color: #312e81;
+            padding: 8px 16px;
+            border-radius: 20px;
+            font-weight: 600;
+            font-size: 1.1rem;
+            display: inline-block;
+            align-self: flex-start;
+            margin-bottom: 16px;
+        }
+        .container {
+            max-width: 1400px;
+            margin: 0 auto;
+            padding: 24px;
+        }
+        .split-layout {
+            display: flex;
+            gap: 24px;
+            height: calc(100vh - 200px);
+            min-height: 600px;
+        }
+        .table-container {
+            flex: 1;
+            overflow: auto;
+            display: flex;
+            flex-direction: column;
+        }
+        .table-wrapper {
+            flex: 1;
+            overflow: auto;
+        }
+        @media (max-width: 1024px) {
+            .split-layout {
+                flex-direction: column;
+                height: auto;
+            }
+            .left-panel {
+                width: 100%;
+            }
+            .right-panel {
+                width: 100%;
+            }
+        }
+        @media (max-width: 768px) {
+            .input-row {
+                flex-direction: column;
+            }
+            .action-buttons {
+                flex-direction: column;
+            }
+            .btn-primary, .btn-secondary, .btn-danger {
+                width: 100%;
+            }
+        }
+    </style>
+</head>
+<body>
+    <div class="container">
+        <!-- Header -->
+        <div class="text-center mb-8">
+            <h1 class="main-title">文本结构化解析工具</h1>
+            <p class="subtitle">左右分栏 · 简单易用 · 清晰展示</p>
+        </div>
+
+        <!-- Split Layout -->
+        <div class="split-layout">
+            <!-- Left Panel: User Input Area (30%) -->
+            <div class="left-panel">
+                <!-- Step 1: Field Configuration -->
+                <div class="panel-section">
+                    <h2 class="panel-title">
+                        <span class="step-number">1</span>
+                        选择要显示的字段
+                    </h2>
+                    <div id="fields" style="display: flex; flex-wrap: wrap; gap: 8px;"></div>
+                    <div class="input-row">
+                        <input type="text" id="newFieldInput" placeholder="输入新字段名称..." maxlength="20">
+                        <button onclick="addNewField()" class="btn-primary">添加</button>
+                    </div>
+                </div>
+
+                <!-- Step 2: Text Input -->
+                <div class="panel-section">
+                    <h2 class="panel-title">
+                        <span class="step-number">2</span>
+                        粘贴要解析的文本
+                    </h2>
+                    <textarea id="inputText" placeholder="在这里粘贴您的文本内容...&#10;&#10;例如：&#10;姓名张三 身份证号123456 联系方式13800138000&#10;姓名李四 年龄25岁 学历本科"></textarea>
+                </div>
+
+                <!-- Step 3: Action Buttons -->
+                <div class="panel-section">
+                    <h2 class="panel-title">
+                        <span class="step-number">3</span>
+                        开始操作
+                    </h2>
+                    <div class="action-buttons">
+                        <button onclick="parseAndAppend()" class="btn-primary">追加到表格</button>
+                        <button onclick="loadTestData()" class="btn-secondary">示例数据</button>
+                        <button onclick="clearTable()" class="btn-danger">清空全部</button>
+                    </div>
+                </div>
+            </div>
+
+            <!-- Right Panel: Table Preview (70%) -->
+            <div class="right-panel">
+                <h2 class="panel-title">
+                    <span class="step-number">4</span>
+                    解析结果预览
+                </h2>
+                <div class="record-info">
+                    共 <span id="recordCount">0</span> 条记录
+                </div>
+                <div class="table-container">
+                    <div class="table-wrapper">
+                        <table id="resultTable">
+                            <!-- Table will be populated by JavaScript -->
+                        </table>
+                    </div>
+                </div>
+            </div>
+        </div>
+
+        <div class="text-center text-gray-500 mt-8 pb-8 large-text">
+            提示：所有操作都在您的电脑上完成，数据不会上传到网络
+        </div>
+    </div>
+
+    <script>
+        // --- STATE MANAGEMENT ---
+        let fieldsList = ["姓名", "年龄", "学历", "联系方式", "身份证号", "毕业院校"];
+        let selectedFields = new Set(fieldsList);
+        let allData = []; // Holds all parsed records
+
+        // --- FIELD CONFIGURATION FOR PARSING ---
+        const fieldParsers = new Map([
+            ["姓名", text => text.match(/姓名\s*[:：]?\s*([\u4e00-\u9fa5]{2,4})/i)],
+            ["身份证号", text => text.match(/身份证号\s*[:：]?\s*(\d{17}[\dXx]|\d{18})/i) || text.match(/(\d{17}[\dXx]|\d{18})/)],
+            ["联系方式", text => text.match(/联系方式\s*[:：]?\s*(1[3-9]\d{9})/i) || text.match(/\b(1[3-9]\d{9})\b/)],
+            ["学历", text => text.match(/(本科|硕士|博士)/)],
+            ["毕业院校", text => text.match(/([\u4e00-\u9fa5]{2,12}(?:大学|学院))/)],
+            ["年龄", text => text.match(/\b(\d{1,3})\s*岁?\b/)]
+        ]);
+
+        // --- INITIALIZATION ---
+        window.onload = () => {
+            renderFields();
+            updateRecordCount();
+        };
+
+        // --- UI & FIELD MANAGEMENT ---
+        function renderFields() {
+            const container = document.getElementById("fields");
+            container.innerHTML = "";
+            fieldsList.forEach(f => {
+                const isChecked = selectedFields.has(f);
+                const div = document.createElement("div");
+                div.className = `field-item ${isChecked ? 'selected' : ''}`;
+                div.onclick = () => {
+                    const checkbox = div.querySelector('input');
+                    checkbox.checked = !checkbox.checked;
+                    toggleField(f, checkbox.checked);
+                };
+                div.innerHTML = `
+                    <input type="checkbox" id="f_${f}" ${isChecked ? 'checked' : ''} onchange="toggleField('${f}', this.checked)" class="w-5 h-5 accent-indigo-600 mr-3 cursor-pointer" style="pointer-events: none;">
+                    <label for="f_${f}" class="cursor-pointer">${f}</label>
+                `;
+                container.appendChild(div);
+            });
+            renderAll();
+        }
+
+        function toggleField(field, checked) {
+            checked ? selectedFields.add(field) : selectedFields.delete(field);
+            renderAll();
+        }
+
+        function addNewField() {
+            const input = document.getElementById("newFieldInput");
+            const newField = input.value.trim();
+            if (newField && !fieldsList.includes(newField)) {
+                fieldsList.push(newField);
+                selectedFields.add(newField);
+                fieldParsers.set(newField, text => {
+                    const regex = new RegExp(`${newField}\\s*[:：]?\\s*([^\\n\\r]+)`);
+                    return text.match(regex);
+                });
+                renderFields();
+                input.value = "";
+            } else if (!newField) {
+                alert("请输入字段名称");
+            } else {
+                alert("该字段已存在");
+            }
+        }
+        
+        // --- PARSING & DATA HANDLING ---
+        function parseAndAppend() {
+            try {
+                const text = document.getElementById("inputText").value.trim();
+                if (!text) return alert("请先输入要解析的文本内容");
+                
+                const newData = parseText(text);
+                if (newData.length > 0) {
+                    allData.push(...newData);
+                    document.getElementById("inputText").value = "";
+                    updateRecordCount();
+                }
+                
+                renderAll();
+
+            } catch (e) {
+                console.error(e);
+                alert("解析出错，请检查文本格式是否正确");
+            }
+        }
+
+        function parseText(text) {
+            if (!text.trim()) return [];
+            const recordsText = text.split(/(?=姓名\s*[:：]?)/i).filter(Boolean);
+            return recordsText.map(t => parseSingleRecord(t.trim()));
+        }
+
+        function parseSingleRecord(text) {
+            const record = {};
+            fieldsList.forEach(f => record[f] = null);
+            
+            for (let [field, parser] of fieldParsers.entries()) {
+                const match = parser(text);
+                if (match) {
+                    const value = match[1] ? match[1].trim() : match[0].trim();
+                    record[field] = (field === "身份证号") ? value.toUpperCase() : value;
+                }
+            }
+            return record;
+        }
+
+        // --- RENDERING ---
+        function renderAll() {
+            renderTable();
+        }
+
+        function renderTable() {
+            const table = document.getElementById("resultTable");
+            const visibleFields = fieldsList.filter(f => selectedFields.has(f));
+
+            if (visibleFields.length === 0) {
+                table.innerHTML = '<tr><td class="empty-table">请至少选择一个字段来显示</td></tr>';
+                return;
+            }
+
+            let html = '<thead><tr>';
+            visibleFields.forEach(f => {
+                html += `<th>${f}</th>`;
+            });
+            html += '</tr></thead><tbody>';
+            
+            if (allData.length === 0) {
+                html += `<tr><td colspan="${visibleFields.length}" class="empty-table">暂无数据<br><br>请在左侧输入文本并点击"追加到表格"</td></tr>`;
+            } else {
+                allData.forEach(row => {
+                    html += '<tr>';
+                    visibleFields.forEach(f => {
+                        const val = (row[f] !== null && row[f] !== undefined) ? row[f] : '—';
+                        html += `<td>${val}</td>`;
+                    });
+                    html += '</tr>';
+                });
+            }
+            html += '</tbody>';
+            
+            table.innerHTML = html;
+        }
+
+        function updateRecordCount() {
+            document.getElementById("recordCount").textContent = allData.length;
+        }
+
+        // --- UTILITY FUNCTIONS ---
+        function clearTable() {
+            if (confirm("确定要清空所有数据吗？此操作无法撤销。")) {
+                allData = [];
+                renderAll();
+                updateRecordCount();
+            }
+        }
+
+        function loadTestData() {
+            const testData = `姓名张三 身份证号132226111111113314 联系方式15011113477 毕业院校: 北京大学
+姓名：李四 年龄：25岁 学历：硕士 联系方式：18622223333 毕业院校：清华大学
+姓名: 王五, 年龄: 30, 学历: 博士, 联系方式: 13988887777, 身份证号: 440101199003078888, 毕业院校: 复旦大学`;
+            document.getElementById("inputText").value = testData;
+            parseAndAppend();
+        }
+    </script>
+</body>
+</html>

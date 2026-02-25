@@ -1,0 +1,92 @@
+<!DOCTYPE html>
+<html lang="zh">
+<head>
+<meta charset="UTF-8">
+<title>候选人解析工具</title>
+<style>
+body { font-family: Arial; padding: 20px; }
+textarea { width: 100%; height: 200px; }
+button { margin-top: 10px; padding: 8px 16px; }
+table { margin-top: 20px; border-collapse: collapse; width: 100%; }
+th, td { border: 1px solid #ccc; padding: 8px; text-align: left; }
+</style>
+</head>
+<body>
+
+<h2>候选人文本解析 → 导出 Excel</h2>
+
+<textarea id="inputText" placeholder="粘贴候选人文本..."></textarea>
+<br>
+<button onclick="parseText()">解析并导出Excel</button>
+
+<table id="previewTable"></table>
+
+<script>
+function parseText() {
+    const text = document.getElementById("inputText").value;
+    const blocks = text.split('----------------').filter(b => b.trim() !== '');
+
+    let data = [];
+    let index = 1;
+
+    blocks.forEach(block => {
+        let name = "";
+        let degree = "";
+        let school = "";
+        let phone = "";
+
+        block.split('\n').forEach(line => {
+            if (line.includes("姓名")) name = line.split("：")[1]?.trim() || "";
+            if (line.includes("学历")) degree = line.split("：")[1]?.trim() || "";
+            if (line.includes("毕业院校")) school = line.split("：")[1]?.trim() || "";
+            if (line.includes("联系方式")) phone = line.split("：")[1]?.trim() || "";
+        });
+
+        if (name) {
+            data.push([index++, name, degree, school, phone]);
+        }
+    });
+
+    renderTable(data);
+    exportCSV(data);
+}
+
+function renderTable(data) {
+    const table = document.getElementById("previewTable");
+    table.innerHTML = "";
+
+    const headers = ["编号", "姓名", "学历", "毕业院校", "联系方式"];
+    const headerRow = table.insertRow();
+    headers.forEach(h => {
+        const th = document.createElement("th");
+        th.innerText = h;
+        headerRow.appendChild(th);
+    });
+
+    data.forEach(row => {
+        const tr = table.insertRow();
+        row.forEach(cell => {
+            const td = tr.insertCell();
+            td.innerText = cell;
+        });
+    });
+}
+
+function exportCSV(data) {
+    const headers = ["编号", "姓名", "学历", "毕业院校", "联系方式"];
+    let csvContent = "\uFEFF" + headers.join(",") + "\n";
+
+    data.forEach(row => {
+        csvContent += row.join(",") + "\n";
+    });
+
+    const blob = new Blob([csvContent], { type: "text/csv;charset=utf-8;" });
+    const link = document.createElement("a");
+    link.href = URL.createObjectURL(blob);
+    link.download = "候选人名单.csv";
+    link.click();
+}
+</script>
+
+</body>
+</html>
